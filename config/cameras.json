@@ -1,0 +1,31 @@
+{
+  "_comment": "PRD §6/§10/§18. temporal_mode and measured_fps are written by scripts/probe_cameras.py at 17:45-18:00 and must match what the UI displays (AC-15). Zone polygons are [[x,y],...] in image pixel space, calibrated manually per camera (§10) - no automatic intersection understanding.",
+
+  "temporal_mode": "pending_probe",
+  "measured_fps": null,
+
+  "primary": "TBD",
+  "fallback_ladder": ["TBD", "TBD_BACKUP_1", "TBD_BACKUP_2", "demo_replay"],
+
+  "cameras": [
+    {
+      "id": "TBD",
+      "name": "TBD - pick a camera with a visible crosswalk, a visible turn movement and a stable frame. Timebox to 15 minutes (§10).",
+      "intersection": "TBD",
+      "latitude": null,
+      "longitude": null,
+      "image_url": "https://webcams.nyctmc.org/api/cameras/TBD/image",
+      "zones": {
+        "vru_approach": [],
+        "vehicle_turn_approach": [],
+        "conflict_zone": []
+      }
+    }
+  ],
+
+  "demo_replay": {
+    "id": "demo_replay",
+    "clip": "demo/righthook-demo.mp4",
+    "_comment": "Mandatory rung (§18). Prerecorded input, not prerecorded inference - runs through the same Roboflow pipeline (AC-10). Capture by 19:35."
+  }
+}

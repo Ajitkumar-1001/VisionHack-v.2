@@ -1,0 +1,17 @@
+# AC-16: no committed keys. This entry exists before any .env is ever written.
+.env
+.env.local
+
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+.claude-flow/
+.DS_Store
+
+# Screen recordings are large; the one demo clip is committed deliberately by
+# name (§18 makes the replay mandatory), everything else stays out.
+demo/recordings/
+*.mov

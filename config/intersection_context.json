@@ -1,0 +1,13 @@
+{
+  "_comment": "PRD §17. Precomputed ONCE for the chosen intersection, not queried live - that saves ~75 minutes and AC-11 still passes. History gives context; it NEVER modifies an individual event's severity. Fill this in at 19:35-19:45 and record the exact query in the README so the pipeline is reproducible.",
+
+  "id": "TBD",
+  "intersection": "TBD",
+  "context": {
+    "bike_infrastructure": null,
+    "facility_type": null,
+    "historical_cyclist_collisions": null,
+    "source": "NYC Motor Vehicle Collisions - Crashes + NYC Bicycle Routes, 250m radius, 2020-2025",
+    "retrieved_at": null
+  }
+}

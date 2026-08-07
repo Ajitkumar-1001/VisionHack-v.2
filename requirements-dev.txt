@@ -1,0 +1,5 @@
+# Test-only. Deliberately NOT in requirements.txt — pytest must not ship in the
+# Cloud Run image (PRD §21: Veris/pytest call the deployed API from outside,
+# never from inside the real-time path).
+-r requirements.txt
+pytest>=8.3
