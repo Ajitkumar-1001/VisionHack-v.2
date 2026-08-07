@@ -1,0 +1,46 @@
+{
+  "event_id": "rh_01J9XYZ",
+  "event_type": "potential_turning_conflict",
+  "timestamp": "2026-08-07T21:24:03Z",
+
+  "camera": {
+    "id": "nyc_cam_01",
+    "mode": "live",
+    "measured_fps": 0.5,
+    "temporal_mode": "frames"
+  },
+
+  "participants": {
+    "vehicle": { "track_id": 34, "class": "car" },
+    "vru":     { "track_id": 51, "class": "bicycle" }
+  },
+
+  "observation": {
+    "vehicle_entered_turn_zone": true,
+    "vru_entered_approach_zone": true,
+    "both_entered_conflict_zone": true,
+    "temporal_gap_frames": 1,
+    "temporal_gap_seconds_estimate": 2.0,
+    "measurement_basis": "observed zone-entry timestamps"
+  },
+
+  "decision": {
+    "severity": "warning",
+    "action": "create_safety_event"
+  },
+
+  "location": {
+    "intersection": "Example Ave & Example St",
+    "latitude": 40.0000,
+    "longitude": -73.0000
+  },
+
+  "context": {
+    "status": "available",
+    "bike_infrastructure": true,
+    "facility_type": "protected bike lane",
+    "historical_cyclist_collisions": 14
+  },
+
+  "disclaimer": "Heuristic conflict detection. Not a calibrated crash-risk probability."
+}

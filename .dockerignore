@@ -1,0 +1,24 @@
+# Build context for `gcloud run deploy --source .`. The Dockerfile needs only
+# app/ and config/; everything below is either large or irrelevant to the image.
+.git/
+.gitignore
+.venv/
+**/.venv/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+
+.env
+.claude-flow/
+.veris/
+
+# Docs and demo assets are repo artifacts, not runtime data. The replay clip in
+# particular is large and is never read by the container.
+*.md
+docs/
+demo/
+tests/
+scripts/
+
+.DS_Store

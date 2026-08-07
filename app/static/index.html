@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RightHook NYC</title>
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<!-- One screen. No navigation, no landing page, no settings, no auth. PRD §22.
+     The judge's eye must move: camera -> conflict zone -> severity -> delta +
+     units -> event created -> context -> system status. -->
+<main class="shell">
+
+  <header class="bar">
+    <div>
+      <h1>RIGHTHOOK NYC</h1>
+      <p class="sub">Proactive vehicle–VRU conflict detection</p>
+    </div>
+    <div class="right">
+      <!-- AC-13: must always differentiate live from replay. Never present
+           prerecorded footage as live. -->
+      <span id="mode-badge" class="badge badge-replay">● DEMO REPLAY</span>
+      <!-- AC-15: measured frame rate and temporal mode are always visible. -->
+      <p class="sub" id="fps-line">— fps · mode pending probe</p>
+    </div>
+  </header>
+
+  <section class="split">
+    <div class="panel camera" id="camera-panel">
+      <span class="placeholder">CAMERA FEED — pending §6 probe</span>
+    </div>
+
+    <div class="panel state">
+      <h2>INTERSECTION STATE</h2>
+      <p class="severity" id="severity">NORMAL</p>
+      <p class="delta" id="delta">—</p>
+      <p class="event-flag" id="event-flag"></p>
+    </div>
+  </section>
+
+  <section class="panel strip">
+    <h2>NYC CONTEXT</h2>
+    <p id="context-line">Historical context unavailable</p>
+  </section>
+
+  <section class="panel strip">
+    <h2>RECENT EVENTS</h2>
+    <ul id="events" class="events"><li class="muted">No events yet</li></ul>
+  </section>
+
+  <section class="panel strip system">
+    <span id="sys-roboflow">Roboflow ⬜</span>
+    <span id="sys-cloudrun">Cloud Run ⬜</span>
+    <span id="sys-tests">Tests —</span>
+  </section>
+
+  <!-- §12: this disclaimer must appear in the UI and the README. -->
+  <footer class="disclaimer">
+    Heuristic detection using observed zone-entry timestamps · not a calibrated
+    crash probability · no face or plate recognition
+  </footer>
+
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>

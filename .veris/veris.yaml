@@ -1,0 +1,68 @@
+# Veris AI — VERIFY. PRD §21.
+#
+# NOTE: this is a best-effort placeholder. The schema below has NOT been
+# validated against Veris's actual config format. §21 makes the ordering
+# explicit — pytest is the deliverable, Veris is the amplifier — so nothing here
+# is allowed to block the build. tests/ is the artifact that scores.
+#
+# The six scenarios below mirror tests/ exactly and drive the same endpoint,
+# POST /api/agent/event, which reproduces the decision logic without a camera.
+
+name: righthook-nyc
+description: >-
+  Behavioural verification of an agent that detects potential turning-vehicle
+  conflicts with cyclists and pedestrians at a single NYC intersection.
+
+target:
+  base_url: ${RIGHTHOOK_URL}
+  health: GET /health
+
+scenarios:
+  - id: 1
+    name: valid critical conflict
+    endpoint: POST /api/agent/event
+    expect:
+      severity: critical
+      events_created: 1
+    proves: core path
+
+  - id: 2
+    name: warning band conflict
+    endpoint: POST /api/agent/event
+    expect:
+      severity: warning
+      events_created: 1
+    proves: threshold correctness
+
+  - id: 3
+    name: safe interaction — VRU in conflict zone, vehicle absent
+    endpoint: POST /api/agent/event
+    expect:
+      events_created: 0
+    proves: no false positives
+
+  - id: 4
+    name: duplicate suppression — same pair sent five times
+    endpoint: POST /api/agent/event
+    repeat: 5
+    expect:
+      events_created: 1
+    proves: dedup (§15)
+
+  - id: 5
+    name: primary camera unavailable
+    endpoint: POST /api/camera/failover
+    expect:
+      switched: true
+      mode: [live, demo_replay]
+    proves: resilience
+
+  - id: 6
+    name: NYC Open Data returns 503
+    endpoint: GET /api/context
+    expect:
+      live_detection: continue
+      context.status: unavailable
+    proves: >-
+      graceful degradation — never fail live safety detection because optional
+      enrichment is down
