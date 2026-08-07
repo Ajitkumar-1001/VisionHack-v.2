@@ -1,20 +1,65 @@
 {
   "_comment": "PRD §6/§10/§18. temporal_mode and measured_fps are written by scripts/probe_cameras.py at 17:45-18:00 and must match what the UI displays (AC-15). Zone polygons are [[x,y],...] in image pixel space, calibrated manually per camera (§10) - no automatic intersection understanding.",
 
-  "temporal_mode": "pending_probe",
-  "measured_fps": null,
+  "temporal_mode": "frames",
+  "measured_fps": 0.489,
 
-  "primary": "TBD",
-  "fallback_ladder": ["TBD", "TBD_BACKUP_1", "TBD_BACKUP_2", "demo_replay"],
+  "primary": "8a6bc417-4877-4ebe-8052-88c1b261baf1",
+  "fallback_ladder": ["8a6bc417-4877-4ebe-8052-88c1b261baf1", "c145d543-b5f5-4dec-9bb8-7866eafdf054", "8cc75cbc-e050-4947-aee8-639f63fe4ca7", "demo_replay"],
 
   "cameras": [
     {
-      "id": "TBD",
-      "name": "TBD - pick a camera with a visible crosswalk, a visible turn movement and a stable frame. Timebox to 15 minutes (§10).",
-      "intersection": "TBD",
-      "latitude": null,
-      "longitude": null,
-      "image_url": "https://webcams.nyctmc.org/api/cameras/TBD/image",
+      "id": "8a6bc417-4877-4ebe-8052-88c1b261baf1",
+      "name": "Central Park West @ 86 St",
+      "intersection": "Central Park West & W 86 St, Manhattan",
+      "latitude": 40.785302,
+      "longitude": -73.969353,
+      "image_url": "https://webcams.nyctmc.org/api/cameras/8a6bc417-4877-4ebe-8052-88c1b261baf1/image",
+      "mean_frame_gap_s": 2.04,
+      "zones": {
+        "vru_approach": [],
+        "vehicle_turn_approach": [],
+        "conflict_zone": []
+      },
+      "context": {
+        "bike_infrastructure": true,
+        "facility_type": "painted bike lane on Central Park West, visible in camera frame",
+        "historical_cyclist_collisions": 16,
+        "historical_pedestrian_collisions": 12,
+        "historical_vru_collisions": 28,
+        "total_collisions": 96,
+        "radius_meters": 250,
+        "window": "2021-08-07 to 2026-08-07",
+        "on_truck_route": true,
+        "truck_route_streets": ["CENTRAL PARK WEST (Local)", "WEST 86 STREET (Local)", "86 ST TRANSVERSE (Local)"],
+        "truck_route_regulation": "NYCDOT Traffic Rules, Section 4-13(d)(2)",
+        "source": "NYC Open Data: Motor Vehicle Collisions - Crashes (h9gi-nx95) + New York City Truck Routes (jjja-shxy)",
+        "query": "within_circle(location, 40.785302, -73.969353, 250) AND crash_date >= '2021-08-07' AND (number_of_cyclist_injured > 0 OR number_of_pedestrians_injured > 0)",
+        "retrieved_at": "2026-08-07T17:48:00-04:00"
+      }
+    },
+    {
+      "id": "c145d543-b5f5-4dec-9bb8-7866eafdf054",
+      "name": "Exterior St @ 3 Ave",
+      "intersection": "Exterior St & 3 Ave, Bronx",
+      "latitude": 40.809314,
+      "longitude": -73.929538,
+      "image_url": "https://webcams.nyctmc.org/api/cameras/c145d543-b5f5-4dec-9bb8-7866eafdf054/image",
+      "mean_frame_gap_s": 1.81,
+      "zones": {
+        "vru_approach": [],
+        "vehicle_turn_approach": [],
+        "conflict_zone": []
+      }
+    },
+    {
+      "id": "8cc75cbc-e050-4947-aee8-639f63fe4ca7",
+      "name": "Canal Street @ Chrystie Street",
+      "intersection": "Canal St & Chrystie St, Manhattan",
+      "latitude": 40.715821,
+      "longitude": -73.994913,
+      "image_url": "https://webcams.nyctmc.org/api/cameras/8cc75cbc-e050-4947-aee8-639f63fe4ca7/image",
+      "mean_frame_gap_s": 1.84,
       "zones": {
         "vru_approach": [],
         "vehicle_turn_approach": [],

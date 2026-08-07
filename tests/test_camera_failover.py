@@ -1,15 +1,49 @@
-"""PRD §21 scenario(s) 5. Primary unavailable -> switch_camera(), backup selected
+"""PRD §21 scenario 5 + §18. A failed camera produces fallback behaviour."""
 
-Written against the deployed API surface (§20), driven through
-POST /api/agent/event — the endpoint that lets anyone reproduce the decision
-logic without a camera. pytest first, Veris second (§21): this artifact lands in
-the repo regardless of whether the Veris integration lands, and it scores on
-both Technical Execution and Open Source.
-"""
+from __future__ import annotations
 
-import pytest
+from app.cameras.manager import CameraManager
 
-pytest.skip(
-    "§21 scenario(s) 5 — engine not implemented yet (scaffold)",
-    allow_module_level=True,
-)
+
+def test_scenario_5_failover_selects_backup(client):
+    before = client.get("/api/status").json()
+    assert before["mode"] == "live"
+
+    switched = client.post("/api/camera/failover").json()
+
+    assert switched["switched"] is True
+    after = client.get("/api/status").json()
+    assert after["camera"]["id"] != before["camera"]["id"]
+
+
+def test_ladder_terminates_at_demo_replay():
+    """§18: the ladder always ends somewhere demo-able. The replay rung is
+    mandatory — judges warn a camera may go dark at 20:45."""
+    m = CameraManager()
+    for _ in range(len(m.ladder) + 2):
+        m.switch_camera()
+
+    assert m.current_id == "demo_replay"
+    assert m.is_replay
+
+
+def test_mode_label_tracks_the_ladder(client):
+    """AC-13: never present prerecorded footage as live. The label is derived
+    from ladder position, so it cannot drift out of sync by hand."""
+    m = CameraManager()
+    assert m.mode == "live"
+
+    while not m.is_replay:
+        m.switch_camera()
+
+    assert m.mode == "demo_replay"
+
+
+def test_failover_at_the_last_rung_does_not_crash():
+    m = CameraManager()
+    while not m.is_replay:
+        m.switch_camera()
+
+    result = m.switch_camera()
+    assert result["switched"] is False
+    assert m.current_id == "demo_replay"

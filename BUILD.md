@@ -12,10 +12,10 @@
 **Build phase:** Phase 1 — Cloud Run
 **Overall status:** 🟡 IN PROGRESS
 
-**Current camera:** TBD
-**Input mode:** TBD
-**Measured FPS:** TBD
-**Temporal mode:** TBD
+**Current camera:** Central Park West @ 86 St (`8a6bc417-4877-4ebe-8052-88c1b261baf1`)
+**Input mode:** NYCTMC stills (~1 distinct frame / 2.04 s)
+**Measured FPS:** 0.489
+**Temporal mode:** `frames` (Variant B)
 
 Allowed temporal modes:
 
@@ -28,7 +28,7 @@ Allowed temporal modes:
 **Roboflow:** ⬜
 **Conflict Engine:** ⬜
 **Camera Failover:** ⬜
-**NYC Context:** ⬜
+**NYC Context:** ✅ (data precomputed into `config/cameras.json`; serving code pending)
 **pytest:** ⬜
 **Veris:** ⬜
 **Demo Replay:** ⬜
@@ -58,19 +58,19 @@ CLOUD_RUN_URL=
 
 **Run this before any conflict-engine code is written. Hard timebox: 15 minutes.**
 
-- [ ] Pull the camera list, count online cameras
-- [ ] Pull 10 consecutive stills from 3–4 candidate cameras
-- [ ] Measure actual wall-clock interval between distinct frames
-- [ ] Measure pedestrian/cyclist pixel height in those stills
-- [ ] Attempt ingest of one public video-rate NYC intersection stream
-- [ ] **STOP AT 15 MINUTES — commit to a variant**
-- [ ] Camera selected (timeboxed to 15 min, visible crosswalk + turn movement + stable frame)
-- [ ] Save probe results here:
+- [x] Pull the camera list, count online cameras (964 online, 2026-08-07 17:45 EDT)
+- [x] Pull 8 consecutive stills from 6 candidate cameras
+- [x] Measure actual wall-clock interval between distinct frames (best 1.59 s; chosen camera 2.04 s)
+- [ ] Measure pedestrian/cyclist pixel height in those stills (eyeballed only: VRUs ~15–25 px — measure before setting Roboflow confidence floors)
+- [ ] Attempt ingest of one public video-rate NYC intersection stream (deliberately skipped — Variant B committed; revisit post-hackathon)
+- [x] **STOP AT 15 MINUTES — commit to a variant**
+- [x] Camera selected (CPW @ 86 St: two crosswalks, bike lane, and turning traffic in frame; faster cameras had no VRU-relevant view)
+- [x] Save probe results here:
 
 ```text
-VARIANT=            (A = seconds / B = frames / C = cooccupancy)
-TEMPORAL_MODE=
-MEASURED_FPS=
+VARIANT=B
+TEMPORAL_MODE=frames
+MEASURED_FPS=0.489
 ```
 
 ## Gate 3 — Roboflow Perception (§9–10)
@@ -106,8 +106,8 @@ MEASURED_FPS=
 
 ## Gate 6 — NYC Context (§17)
 
-- [ ] Intersection context precomputed and pasted into `config/cameras.json` (not queried live)
-- [ ] Context includes `bike_infrastructure`, `facility_type`, `historical_cyclist_collisions`, `source`, `retrieved_at`
+- [x] Intersection context precomputed and pasted into `config/cameras.json` (not queried live)
+- [x] Context includes `bike_infrastructure`, `facility_type`, `historical_cyclist_collisions`, `source`, `retrieved_at` (+ truck-route fields, ADR-002)
 - [ ] `get_intersection_context()` failure is non-fatal — surfaces as `context.status: "unavailable"`, never a 500
 - [ ] `GET /api/context` returns the context block
 - [ ] History never modifies live event severity — rendered in a separate UI region

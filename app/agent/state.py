@@ -24,4 +24,12 @@ class AgentState(StrEnum):
     ALERT_CREATED = "ALERT_CREATED"
 
 
-# TODO(§13): transition function + TTL-driven decay back to NORMAL.
+def next_state(
+    both_approaching: bool, both_in_conflict: bool, within_threshold: bool
+) -> AgentState:
+    """Pure transition. No history — the caller owns decay back to NORMAL."""
+    if both_in_conflict and within_threshold:
+        return AgentState.CONFLICT
+    if both_approaching:
+        return AgentState.WATCH
+    return AgentState.NORMAL

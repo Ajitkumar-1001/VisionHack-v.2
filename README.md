@@ -70,10 +70,14 @@ Those weights could not be justified honestly, so they do not exist.
 
 ## Measured frame rate and temporal mode
 
-> **TBD — pending the §6 probe.** Run `python scripts/probe_cameras.py`, then
-> fill in the measured fps and the chosen variant here and in
-> `config/cameras.json`. This section is the project's credibility: the UI and
-> this README must state the same measured number.
+> **Measured 2026-08-07 17:45 EDT — Variant B, `temporal_mode: "frames"`.**
+> Probe (`scripts/probe_cameras.py`, 6 cameras × 8 samples): best refresh
+> observed across NYCTMC was **0.629 fps**; the chosen camera measures
+> **0.489 fps** (one distinct frame every ~2.04 s). No sub-second ΔT is
+> claimable, so none is claimed. Chosen camera: **Central Park West @ 86 St**
+> (`8a6bc417-4877-4ebe-8052-88c1b261baf1`) — two crosswalks, the painted bike
+> lane, and turning traffic all in frame. Full probe table in
+> [`docs/DECISIONS.md`](docs/DECISIONS.md).
 
 | | Variant A | Variant B | Variant C |
 |---|---|---|---|
@@ -115,12 +119,25 @@ detected interaction was a near miss.
 |---|---|---|
 | NYC DOT traffic cameras | `GET https://webcams.nyctmc.org/api/cameras` | Camera list (`isOnline` is the string `"true"`) |
 | NYC DOT still frames | `GET https://webcams.nyctmc.org/api/cameras/{id}/image` | JPEG frames, polled every 2s |
-| NYC Open Data | Motor Vehicle Collisions – Crashes | Historical cyclist collisions near the intersection |
-| NYC Open Data | NYC Bicycle Routes | Presence and type of bike infrastructure |
+| NYC Open Data | Motor Vehicle Collisions – Crashes (`h9gi-nx95`) | Historical VRU-injury collisions near the intersection |
+| NYC Open Data | New York City Truck Routes (`jjja-shxy`) | Whether the intersection sits on designated truck routes |
 
-Open Data is **precomputed once** into `config/intersection_context.json`, not
-queried live. The exact query and its retrieval timestamp are recorded in that
-file so the pipeline is reproducible.
+Truck Routes replaced the originally planned Bicycle Routes dataset
+([ADR-002](docs/DECISIONS.md)): the camera already shows the bike lane, but
+truck-route designation is invisible in the frame and directly modulates the
+`truck`/`bus` classes the detector outputs.
+
+At the chosen intersection (250 m radius, 2021-08-07 → 2026-08-07, retrieved
+2026-08-07 17:48 EDT): **28 collisions injured a cyclist or pedestrian**
+(16 cyclist, 12 pedestrian; 96 collisions total), and the intersection sits
+where **two designated Local Truck Routes cross** — Central Park West, West 86
+Street, and the 86 St Transverse are all `truckroute=Y` (NYCDOT Traffic Rules
+§4-13(d)(2)).
+
+Open Data is **precomputed once** into `config/cameras.json`, not queried live.
+The exact query and its retrieval timestamp are recorded in that file so the
+pipeline is reproducible. Post-hackathon idea, deliberately skipped tonight:
+MTA BusTime GTFS-Realtime to cross-validate detected buses against ground truth.
 
 Historical context is rendered as a separate layer and **never modifies an
 individual event's severity.**
