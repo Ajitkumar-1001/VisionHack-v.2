@@ -13,8 +13,8 @@
 **Overall status:** 🟡 IN PROGRESS
 
 **Current camera:** Central Park West @ 86 St (`8a6bc417-4877-4ebe-8052-88c1b261baf1`)
-**Input mode:** NYCTMC stills (1 distinct frame / ~1.9 s)
-**Measured FPS:** 0.531 — Gate 2 LOCKED (initial run 0.500; the feed jitters)
+**Input mode:** NYCTMC stills (1 distinct frame / 2.00 s)
+**Measured FPS:** 0.500 — Gate 2 LOCKED (60-sample confirmation, ADR-001)
 **Temporal mode:** `frames` (Variant B)
 
 Allowed temporal modes:
@@ -33,7 +33,7 @@ Allowed temporal modes:
 CLOUD_RUN_URL=https://righthook-nyc-916019111029.us-east1.run.app
 ```
 
-Serving revision `righthook-nyc-00002-kzq`. Deployed by explicit image
+Serving revision `righthook-nyc-00005-lp8`. Deployed by explicit image
 build/push, not `--source`: the default compute service account lacks Cloud
 Build permissions on this fresh project, and routing around it was faster than
 granting the role. Redeploy loop (the only sanctioned reason to touch deploy
@@ -53,7 +53,7 @@ docker build --platform linux/amd64 -t $IMG . && docker push $IMG \
 Cloud Run:           ✅
 Roboflow Detection:  ✅  (workflow live in Roboflow; NOT yet wired to the app)
 Frame Rate Gate:     ✅  LOCKED
-Measured FPS:        0.531
+Measured FPS:        0.500
 Temporal Mode:       frames
 Variant:             B
 ```
@@ -116,13 +116,18 @@ magnitude; a third would cost minutes and change nothing.
 Camera:                    Central Park West @ 86 St
 Camera ID:                 8a6bc417-4877-4ebe-8052-88c1b261baf1
 
-Initial measured FPS:      0.500   (2.04 s mean interval)
-Confirmation measured FPS: 0.531   (1.88 s mean interval)
+Stage 1 — screening:       0.489 fps  (2.04 s, 8 samples, 4-5 distinct frames)
+Stage 2 — confirmation:    0.500 fps  (2.00 s, 60 samples, 31 distinct frames)
 
+Reported figure:           0.500   ← Stage 2. Stage 1 was too thin to print.
 Temporal mode:             frames
 Variant:                   B
 Decision:                  LOCKED
 ```
+
+All three ladder cameras land at 0.50–0.51 fps, so the ~2 s refresh is a
+property of the NYCTMC platform rather than of one camera — which means the
+figure stays honest after a failover.
 
 **Reason.** The NYC DOT still feed consistently refreshes at ~0.5 fps. That
 cannot support a defensible sub-second temporal claim, so conflict separation
@@ -140,7 +145,7 @@ is wider than the conflict zone, so ID churn is physics rather than a bug.
 - [x] Pull the camera list, count online cameras (964 online, 2026-08-07 17:45 EDT)
 - [x] Pull 8 consecutive stills from 6 candidate cameras
 - [x] Measure actual wall-clock interval between distinct frames
-- [x] Confirmation run on the chosen camera (0.531 fps / 1.88 s)
+- [x] Confirmation run on the chosen camera (60 samples: 0.500 fps / 2.00 s / 31 distinct frames)
 - [ ] Measure pedestrian/cyclist pixel height in those stills (eyeballed only: VRUs ~15–25 px — measure before setting Roboflow confidence floors)
 - [ ] Attempt ingest of one public video-rate NYC intersection stream (deliberately skipped — Variant B committed; revisit post-hackathon)
 - [x] **STOP AT 15 MINUTES — commit to a variant**
@@ -150,14 +155,13 @@ is wider than the conflict zone, so ID churn is physics rather than a bug.
 ```text
 VARIANT=B
 TEMPORAL_MODE=frames
-MEASURED_FPS=0.531
+MEASURED_FPS=0.500
 ```
 
-> ⚠️ **Unreconciled:** `config/cameras.json` still carries `measured_fps:
-> 0.489`, so the running service, the UI and every emitted event report 0.489 /
-> ≈2.04 s — not the 0.531 locked above. AC-15 requires the *displayed* rate be
-> the measured one, so these must agree before the demo. One-line fix plus a
-> redeploy; see "Open discrepancies" at the foot of this file.
+> ✅ **Reconciled 19:07.** `config/cameras.json`, the live service, the README
+> and ADR-001 all state **0.500**. AC-15 holds: the displayed rate is the
+> measured rate. A 0.531 figure circulated briefly with no recorded
+> methodology — discarded in favour of the 60-sample run.
 
 ## Gate 3 — Roboflow Perception (§9–10)
 
@@ -331,14 +335,16 @@ would say something it cannot back up.
 
 | # | Issue | Why it matters | Fix |
 |---|---|---|---|
-| 1 | `config/cameras.json` says `measured_fps: 0.489`; Gate 2 locked **0.531** | AC-15 requires the displayed rate be the measured one. Today the UI, `/api/status` and every event's `temporal_gap_seconds_estimate` (≈2.04 s) all report the old figure. A judge comparing the board to the screen sees two different numbers. | Set `measured_fps: 0.531` + `mean_frame_gap_s: 1.88`, rerun pytest, redeploy |
+| 1 | ~~FPS figure inconsistent across board / config / UI~~ | — | ✅ **CLOSED 19:07.** All sources state 0.500 (60-sample confirmation). No code or redeploy was needed; only the board was wrong. |
 | 2 | Agent state has no TTL decay | §13 wants `NORMAL` after tracks leave. State sticks on `CONFLICT`/`ALERT_CREATED` after an event, so the second demo run starts dirty. | Needs the perception loop to drive a clock |
 | 3 | `POST /api/perception` unimplemented | The only gap between the tested engine and live detection. Needs pairing of `TrackObservation[]` into vehicle/VRU candidates — no new conflict logic. | Gate 3 |
 | 4 | Zone polygons are `[]` | Nothing can assign a zone, so nothing can enter one. | Gate 3 |
 | 5 | `demo/righthook-demo.mp4` not captured | §18 makes the replay rung mandatory and §25 puts capture at 19:20. Judges warn a camera may go dark at 20:45. | Screen-record before 20:30 |
 | 6 | `.veris/veris.yaml` schema is a guess | No Veris precedent was available. §21 puts pytest first, so it blocks nothing. | P2 |
 
-**Two independent FPS measurements (0.500 / 0.531) is itself an honest finding**
-— the feed jitters. If asked on stage, say the interval varies between roughly
-1.9 s and 2.0 s and that the displayed figure is the confirmation run. Do not
-present it as a stable constant.
+**If asked on stage how the frame rate was measured:** hash each fetched still
+and count only the ones NYC DOT actually published — 31 distinct frames in 60
+samples, 2.00 s mean gap, 0.500 fps. A screening pass over 6 cameras first
+established the citywide ceiling at 0.629 fps, which is what ruled out Variant
+A. Do not quote the screening numbers as the measurement; they rest on 4–5
+frames each and are too thin to print.
