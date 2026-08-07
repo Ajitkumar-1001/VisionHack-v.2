@@ -13,8 +13,8 @@
 **Overall status:** 🟡 IN PROGRESS
 
 **Current camera:** Central Park West @ 86 St (`8a6bc417-4877-4ebe-8052-88c1b261baf1`)
-**Input mode:** NYCTMC stills (1 distinct frame / 2.00 s)
-**Measured FPS:** 0.500 (31 distinct frames over 60 s)
+**Input mode:** NYCTMC stills (1 distinct frame / ~1.9 s)
+**Measured FPS:** 0.531 — Gate 2 LOCKED (initial run 0.500; the feed jitters)
 **Temporal mode:** `frames` (Variant B)
 
 Allowed temporal modes:
@@ -47,14 +47,34 @@ docker build --platform linux/amd64 -t $IMG . && docker push $IMG \
 
 `--platform linux/amd64` is load-bearing — the build host is arm64.
 
-**CURRENT:** Gate 3 — Roboflow perception. `POST /api/perception` is the last
-gap to live detection; it needs pairing only, not new conflict logic.
-**NEXT:** Calibrate the three zone polygons for CPW @ 86 St (still `[]`).
-**DO NOT:** Modify Cloud Run or IAM configuration. Baseline is frozen.
+---
 
-> Gate 2 (measure effective FPS → choose temporal mode) closed at 17:45:
-> **0.500 fps, Variant B, `temporal_mode: frames`**. Recorded in ADR-001 and
-> `config/cameras.json`.
+```text
+Cloud Run:           ✅
+Roboflow Detection:  ✅  (workflow live in Roboflow; NOT yet wired to the app)
+Frame Rate Gate:     ✅  LOCKED
+Measured FPS:        0.531
+Temporal Mode:       frames
+Variant:             B
+```
+
+**CURRENT:** Test ByteTrack stability. Hard timebox 5–7 minutes.
+**NEXT:** Configure the three conflict zones for CPW @ 86 St (still `[]`).
+**BLOCKER:** None.
+
+ByteTrack acceptance test — track the *same* object across 2–3 consecutive
+distinct frames, not one still:
+
+```text
+PASS   frame 1 → ID 12   frame 2 → ID 12   frame 3 → ID 12   → keep Variant B
+FAIL   frame 1 → ID 12   frame 2 → ID 48   frame 3 → ID 91   → Variant C, now
+```
+
+On FAIL do not debug. Set `temporal_mode: "cooccupancy"` and move on — the
+engine already handles all three variants and the severity map is a config
+lookup, so the switch is one value, not a rewrite.
+
+**DO NOT:** Modify Cloud Run or IAM configuration. Baseline is frozen.
 
 ---
 
@@ -87,13 +107,40 @@ These must be completed.
 CLOUD_RUN_URL=https://righthook-nyc-916019111029.us-east1.run.app
 ```
 
-## Gate 2 — Frame-Rate Probe (§6)
+## Gate 2 — Frame-Rate Probe ✅ LOCKED
 
-**Run this before any conflict-engine code is written. Hard timebox: 15 minutes.**
+**Do not probe FPS again.** Two independent measurements agree on the order of
+magnitude; a third would cost minutes and change nothing.
+
+```text
+Camera:                    Central Park West @ 86 St
+Camera ID:                 8a6bc417-4877-4ebe-8052-88c1b261baf1
+
+Initial measured FPS:      0.500   (2.04 s mean interval)
+Confirmation measured FPS: 0.531   (1.88 s mean interval)
+
+Temporal mode:             frames
+Variant:                   B
+Decision:                  LOCKED
+```
+
+**Reason.** The NYC DOT still feed consistently refreshes at ~0.5 fps. That
+cannot support a defensible sub-second temporal claim, so conflict separation
+is expressed in **observed frames** and the measured rate is displayed
+alongside it. Reporting "ΔT = 0.72 s" off this feed would be a false precision
+claim, not a tuning error.
+
+**Tracking.** ByteTrack, best-effort only. AC-04 is waived under Variant C.
+
+**Fallback.** If tracking IDs prove unstable, degrade immediately to
+`temporal_mode: "cooccupancy"` (Variant C) per §6 / §26. Do not debug the
+tracker — a vehicle at 15 mph moves ~13 m between frames at this rate, which
+is wider than the conflict zone, so ID churn is physics rather than a bug.
 
 - [x] Pull the camera list, count online cameras (964 online, 2026-08-07 17:45 EDT)
 - [x] Pull 8 consecutive stills from 6 candidate cameras
-- [x] Measure actual wall-clock interval between distinct frames (best 1.59 s; chosen camera 2.04 s)
+- [x] Measure actual wall-clock interval between distinct frames
+- [x] Confirmation run on the chosen camera (0.531 fps / 1.88 s)
 - [ ] Measure pedestrian/cyclist pixel height in those stills (eyeballed only: VRUs ~15–25 px — measure before setting Roboflow confidence floors)
 - [ ] Attempt ingest of one public video-rate NYC intersection stream (deliberately skipped — Variant B committed; revisit post-hackathon)
 - [x] **STOP AT 15 MINUTES — commit to a variant**
@@ -103,8 +150,14 @@ CLOUD_RUN_URL=https://righthook-nyc-916019111029.us-east1.run.app
 ```text
 VARIANT=B
 TEMPORAL_MODE=frames
-MEASURED_FPS=0.500
+MEASURED_FPS=0.531
 ```
+
+> ⚠️ **Unreconciled:** `config/cameras.json` still carries `measured_fps:
+> 0.489`, so the running service, the UI and every emitted event report 0.489 /
+> ≈2.04 s — not the 0.531 locked above. AC-15 requires the *displayed* rate be
+> the measured one, so these must agree before the demo. One-line fix plus a
+> redeploy; see "Open discrepancies" at the foot of this file.
 
 ## Gate 3 — Roboflow Perception (§9–10)
 
@@ -268,3 +321,24 @@ If you catch yourself building one: **stop.**
 ---
 
 If any decision during the build conflicts with `PRD.md` **§4 (Judging Rubric)** or **§6 (Frame-Rate Gate)**, those two sections win. Everything else is negotiable under time pressure via the degradation ladder above.
+
+---
+
+# 6. Open discrepancies — close before 8:30
+
+Tracked here rather than in someone's head. Each one is a place the system
+would say something it cannot back up.
+
+| # | Issue | Why it matters | Fix |
+|---|---|---|---|
+| 1 | `config/cameras.json` says `measured_fps: 0.489`; Gate 2 locked **0.531** | AC-15 requires the displayed rate be the measured one. Today the UI, `/api/status` and every event's `temporal_gap_seconds_estimate` (≈2.04 s) all report the old figure. A judge comparing the board to the screen sees two different numbers. | Set `measured_fps: 0.531` + `mean_frame_gap_s: 1.88`, rerun pytest, redeploy |
+| 2 | Agent state has no TTL decay | §13 wants `NORMAL` after tracks leave. State sticks on `CONFLICT`/`ALERT_CREATED` after an event, so the second demo run starts dirty. | Needs the perception loop to drive a clock |
+| 3 | `POST /api/perception` unimplemented | The only gap between the tested engine and live detection. Needs pairing of `TrackObservation[]` into vehicle/VRU candidates — no new conflict logic. | Gate 3 |
+| 4 | Zone polygons are `[]` | Nothing can assign a zone, so nothing can enter one. | Gate 3 |
+| 5 | `demo/righthook-demo.mp4` not captured | §18 makes the replay rung mandatory and §25 puts capture at 19:20. Judges warn a camera may go dark at 20:45. | Screen-record before 20:30 |
+| 6 | `.veris/veris.yaml` schema is a guess | No Veris precedent was available. §21 puts pytest first, so it blocks nothing. | P2 |
+
+**Two independent FPS measurements (0.500 / 0.531) is itself an honest finding**
+— the feed jitters. If asked on stage, say the interval varies between roughly
+1.9 s and 2.0 s and that the displayed figure is the confirmation run. Do not
+present it as a stable constant.
