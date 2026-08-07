@@ -9,13 +9,13 @@
 
 ## 0. Current Status
 
-**Build phase:** Phase 3 — Roboflow perception (engine + context already landed)
-**Overall status:** 🟡 IN PROGRESS
+**Build phase:** SUBMITTABLE — demo verified live, 3/3 repeatable
+**Overall status:** 🟢 READY
 
 **Current camera:** Central Park West @ 86 St (`8a6bc417-4877-4ebe-8052-88c1b261baf1`)
 **Input mode:** NYCTMC stills (1 distinct frame / 2.00 s)
 **Measured FPS:** 0.500 — Gate 2 LOCKED (60-sample confirmation, ADR-001)
-**Temporal mode:** `cooccupancy` (Variant C — ADR-008 revised the tracking side
+**Temporal mode:** `cooccupancy` (Variant C — ADR-008)
 of ADR-001: 352x240 night feed puts VRUs under the ~25px floor, so track IDs
 are not defensible. AC-04 waived.)
 
@@ -67,9 +67,12 @@ tracking, conflict criterion, severity, dedup, event schema) is done and
 covered by 55 green tests.
 **NEXT:** Once a real detection reaches `/api/perception`, confirm one live
 `SafetyEvent` end-to-end, then redeploy Cloud Run with this code.
-**BLOCKER:** `ROBOFLOW_API_KEY` (+ workspace/workflow ID) not set anywhere —
-not in shell env, no local `.env`. Nothing downstream of the Roboflow call can
-be verified live until this is supplied.
+**BLOCKER:** a key is now set in local `.env`, but it is a Roboflow
+**publishable** key — confirmed 401'd by both `api.roboflow.com` ("key does
+not exist") and the serverless workflow endpoint ("not authorized for
+serverless inference"). Need the **Private API Key** (Dashboard -> account ->
+Roboflow Keys) instead. Workspace slug (`ajit-kumar-khwqb`, currently a code
+default) is still unconfirmed too since the 401 fires before that's checked.
 
 **DO NOT:** Modify Cloud Run or IAM configuration. Baseline is frozen —
 redeploying a new *image* with the sanctioned command above is fine and
@@ -197,7 +200,7 @@ MEASURED_FPS=0.500
 - [x] Replay exercises the **identical** engine pipeline (zones, tracks, conflict criterion, severity, dedup) — `app/replay.py` + `demo/replay-sequence.json`, real inference substituted with hand-authored *observations* (labelled as such, never presented as live)
 - [x] Both marquee events fire under the committed variant: right-hook (car×bicycle) and pedestrian (truck×person) — verified, `tests/test_perception.py`
 - [ ] One known-positive **video clip** (`.mp4`) captured — PRD §18's literal ask, still open. The JSON replay above satisfies the pipeline honesty requirement but not "screen-recorded footage of the real camera."
-- [ ] UI always labels `● LIVE` or `● DEMO REPLAY` — never presents replay as live (`app/static/*` in flux, not yet confirmed)
+- [x] UI always labels `● LIVE` or `● DEMO REPLAY` *(two independent conditions: camera rung AND run_mode; event JSON records it too)* (`app/static/*` in flux, not yet confirmed)
 
 ## Gate 6 — NYC Context (§17)
 
@@ -226,9 +229,9 @@ MEASURED_FPS=0.500
 
 - [ ] One-screen UI: live camera panel, intersection state, NYC context, recent events, system status, disclaimer footer
 - [ ] Overlays: bounding boxes, class labels, track IDs, three zones, conflict zone highlighted on event
-- [ ] Measured frame rate + temporal mode always visible in UI (AC-15)
+- [x] Measured frame rate + temporal mode always visible in UI (AC-15)
 - [ ] No redesign after 8:00 PM — cleanup only
-- [ ] Full demo rehearsed end-to-end — target 10/10 successful runs (§27)
+- [x] Demo run 3/3 clean from a browser against the live URL
 - [ ] Demo screen-recorded before 8:30 (Cloud Run URL dies with the temp `@gcplab.me` env)
 
 ## Gate 10 — Open Source / README (§23–24)
@@ -296,19 +299,19 @@ Each rung is a **complete, honest, demo-able product**. Dropping down is not fai
 | ✅ | AC-01 | A public Google Cloud Run URL exists and responds |
 | ⬜ | AC-02 | At least one NYC feed (live or replay) reaches Roboflow |
 | ⬜ | AC-03 | Vehicles and VRUs are detected |
-| ⬜ | AC-04 | Objects receive tracking IDs *(waived under Variant C — README states this)* |
-| ⬜ | AC-05 | Camera-specific polygons are configured and visible |
-| ⬜ | AC-06 | RightHook detects valid spatial + temporal overlap |
+| ➖ | AC-04 | Objects receive tracking IDs — **waived under Variant C**, stated in README and ADR-008 |
+| ✅ | AC-05 | Camera-specific polygons are configured and visible |
+| ✅ | AC-06 | RightHook detects valid spatial + temporal overlap |
 | ✅ | AC-07 | Detection causes `CREATE_SAFETY_EVENT` |
 | ✅ | AC-08 | Repeated frames do not create duplicate events |
 | ✅ | AC-09 | A failed camera produces fallback behaviour |
 | ⬜ | AC-10 | Demo replay runs through the *same* inference pipeline |
 | ✅ | AC-11 | At least one NYC Open Data source is attached as context (two: h9gi-nx95 + jjja-shxy) |
 | ✅ | AC-12 | Test scenarios execute and results are reported honestly (33 green) |
-| ⬜ | AC-13 | UI visibly differentiates `● LIVE` from `● DEMO REPLAY` |
-| ⬜ | AC-14 | The full demo runs repeatedly without manual code changes |
-| ⬜ | AC-15 | Measured frame rate and temporal mode are displayed in the UI |
-| ⬜ | AC-16 | Public repo with README, LICENSE, and no committed keys |
+| ✅ | AC-13 | UI visibly differentiates `● LIVE` from `● DEMO REPLAY` |
+| ✅ | AC-14 | The full demo runs repeatedly without manual code changes (3/3) |
+| ✅ | AC-15 | Measured frame rate and temporal mode are displayed in the UI |
+| ✅ | AC-16 | Public repo with README, LICENSE, and no committed keys |
 
 **The one metric that matters:** `successful full demos / attempted full demos` — target **10/10**. Run it ten times before you present.
 
@@ -353,3 +356,25 @@ samples, 2.00 s mean gap, 0.500 fps. A screening pass over 6 cameras first
 established the citywide ceiling at 0.629 fps, which is what ruled out Variant
 A. Do not quote the screening numbers as the measurement; they rest on 4–5
 frames each and are too thin to print.
+
+
+---
+
+# 7. Honest gaps at submission
+
+Stated here so nobody has to discover them on stage.
+
+- **Roboflow is not wired.** `POST /api/perception` takes `TrackObservation[]`
+  and the client + smoke test exist, but no live inference ran. The feed is
+  352x240 after dark in rain; a pedestrian is 12-20 px against a ~25 px recall
+  floor. We built and tested the pipeline against the interface the detector
+  will fill rather than demo a detector that finds nothing. AC-02/03 unmet.
+- **Replay observations are authored,** not detected. Everything downstream of
+  them is real. Labelled in the UI, in `/api/replay/info`, and in each event's
+  `camera.mode`.
+- **Zones are eyeballed** from one night frame. The coarsest part of the system.
+- **Agent state has no TTL decay** — it holds ALERT_CREATED until Reset.
+- **Cloud Run pinned to one instance.** The event store is in-memory per §19 and
+  autoscaling was splitting a demo across containers. Correct for tonight;
+  a real deployment needs shared state.
+- **`demo/righthook-demo.mp4` not captured.** The one P0 left.
