@@ -15,7 +15,9 @@
 **Current camera:** Central Park West @ 86 St (`8a6bc417-4877-4ebe-8052-88c1b261baf1`)
 **Input mode:** NYCTMC stills (1 distinct frame / 2.00 s)
 **Measured FPS:** 0.500 — Gate 2 LOCKED (60-sample confirmation, ADR-001)
-**Temporal mode:** `frames` (Variant B)
+**Temporal mode:** `cooccupancy` (Variant C — ADR-008 revised the tracking side
+of ADR-001: 352x240 night feed puts VRUs under the ~25px floor, so track IDs
+are not defensible. AC-04 waived.)
 
 Allowed temporal modes:
 
@@ -51,41 +53,42 @@ docker build --platform linux/amd64 -t $IMG . && docker push $IMG \
 
 ```text
 Cloud Run:           ✅
-Roboflow Detection:  ✅  (workflow live in Roboflow; NOT yet wired to the app)
-Frame Rate Gate:     ✅  LOCKED
-Measured FPS:        0.500
-Temporal Mode:       frames
-Variant:             B
+Frame Rate Gate:     ✅  LOCKED (0.500 fps)
+Temporal Mode:       cooccupancy (Variant C — ADR-008)
+Zone/track/engine wiring (§9-§11): ✅  ingest_frame() pipeline built + tested
+Demo replay (synthetic-through-real-pipeline): ✅  2/2 marquee events fire
+Real Roboflow call:  🔴  BLOCKED — no ROBOFLOW_API_KEY in this environment
 ```
 
-**CURRENT:** Test ByteTrack stability. Hard timebox 5–7 minutes.
-**NEXT:** Configure the three conflict zones for CPW @ 86 St (still `[]`).
-**BLOCKER:** None.
+**CURRENT:** Wire `roboflow_client.py`'s output parser (raw workflow JSON ->
+`TrackObservation`) — the one piece that genuinely needs a live API response
+to write correctly, per its own TODO. Everything downstream of it (zones,
+tracking, conflict criterion, severity, dedup, event schema) is done and
+covered by 55 green tests.
+**NEXT:** Once a real detection reaches `/api/perception`, confirm one live
+`SafetyEvent` end-to-end, then redeploy Cloud Run with this code.
+**BLOCKER:** `ROBOFLOW_API_KEY` (+ workspace/workflow ID) not set anywhere —
+not in shell env, no local `.env`. Nothing downstream of the Roboflow call can
+be verified live until this is supplied.
 
-ByteTrack acceptance test — track the *same* object across 2–3 consecutive
-distinct frames, not one still:
-
-```text
-PASS   frame 1 → ID 12   frame 2 → ID 12   frame 3 → ID 12   → keep Variant B
-FAIL   frame 1 → ID 12   frame 2 → ID 48   frame 3 → ID 91   → Variant C, now
-```
-
-On FAIL do not debug. Set `temporal_mode: "cooccupancy"` and move on — the
-engine already handles all three variants and the severity map is a config
-lookup, so the switch is one value, not a rewrite.
-
-**DO NOT:** Modify Cloud Run or IAM configuration. Baseline is frozen.
+**DO NOT:** Modify Cloud Run or IAM configuration. Baseline is frozen —
+redeploying a new *image* with the sanctioned command above is fine and
+expected; reconfiguring the service/IAM is not.
 
 ---
 
-**Roboflow:** ⬜
-**Conflict Engine:** ✅ (33 pytest green)
+**Roboflow (wiring):** 🟡 (transport + retry logic done; output parser blocked on API key)
+**Conflict Engine:** ✅ (zone→track→pair→evaluate pipeline, 55 pytest green)
 **Camera Failover:** ✅ (+ `POST /api/camera/reset` so the demo repeats — AC-14)
 **NYC Context:** ✅ (precomputed, served, and rendered)
-**pytest:** ✅ (33 passing; all six §21 scenarios)
+**pytest:** ✅ (55 passing, 1 skipped — the credential-gated Roboflow smoke test)
 **Veris:** ⬜
-**Demo Replay:** ⬜
-**README:** ⬜
+**Demo Replay:** 🟡 (synthetic-observations-through-real-pipeline works and is tested — `demo/replay-sequence.json` + `/api/replay/step`; the literal `.mp4` screen capture PRD §18 also wants is NOT yet recorded)
+**README:** 🟡 (content substantially written; Gate 10 checklist below not reconciled against it)
+
+**21 files of tested, working changes are uncommitted right now** (last commit
+`70fae9d`, 19:13). Worth a checkpoint commit before anything else compounds on
+top of it.
 
 ---
 
@@ -120,8 +123,9 @@ Stage 1 — screening:       0.489 fps  (2.04 s, 8 samples, 4-5 distinct frames)
 Stage 2 — confirmation:    0.500 fps  (2.00 s, 60 samples, 31 distinct frames)
 
 Reported figure:           0.500   ← Stage 2. Stage 1 was too thin to print.
-Temporal mode:             frames
-Variant:                   B
+Temporal mode:             cooccupancy
+Variant:                   C       ← frame rate alone allowed B; ADR-008
+                                     dropped to C on 352x240 resolution
 Decision:                  LOCKED
 ```
 
@@ -147,14 +151,14 @@ is wider than the conflict zone, so ID churn is physics rather than a bug.
 - [x] Measure actual wall-clock interval between distinct frames
 - [x] Confirmation run on the chosen camera (60 samples: 0.500 fps / 2.00 s / 31 distinct frames)
 - [ ] Measure pedestrian/cyclist pixel height in those stills (eyeballed only: VRUs ~15–25 px — measure before setting Roboflow confidence floors)
-- [ ] Attempt ingest of one public video-rate NYC intersection stream (deliberately skipped — Variant B committed; revisit post-hackathon)
+- [ ] Attempt ingest of one public video-rate NYC intersection stream (deliberately skipped — a still-image variant was committed; revisit post-hackathon)
 - [x] **STOP AT 15 MINUTES — commit to a variant**
 - [x] Camera selected (CPW @ 86 St: two crosswalks, bike lane, and turning traffic in frame; faster cameras had no VRU-relevant view)
 - [x] Save probe results here:
 
 ```text
-VARIANT=B
-TEMPORAL_MODE=frames
+VARIANT=C          (frame rate alone allowed B; ADR-008 dropped to C on resolution)
+TEMPORAL_MODE=cooccupancy
 MEASURED_FPS=0.500
 ```
 
@@ -165,13 +169,13 @@ MEASURED_FPS=0.500
 
 ## Gate 3 — Roboflow Perception (§9–10)
 
-- [ ] Roboflow Workflow created — pretrained detection only, no training
-- [ ] Class filter applied: `car`, `truck`, `bus`, `motorcycle`, `bicycle`, `person`
-- [ ] ByteTrack wired for `track_id` continuity
-- [ ] Confidence floor set per class if VRUs are under ~25px tall (documented in README)
-- [ ] Three polygon zones calibrated for the chosen camera: `vru_approach`, `vehicle_turn_approach`, `conflict_zone`
-- [ ] Structured output includes `track_id`, `class`, `confidence`, `bbox`, `zone`, `observed_at`
-- [ ] `CAR #NN` and `BIKE #NN` visible on screen with correct zone
+- [x] Roboflow Workflow created in the Roboflow UI — pretrained, no training *(exists on Roboflow's side; never yet called successfully from this app — no key)*
+- [x] Class filter applied: `car`, `truck`, `bus`, `motorcycle`, `bicycle`, `person` *(`VEHICLE_CLASSES`/`VRU_CLASSES`, `app/models/perception.py`)*
+- [ ] ByteTrack wired for `track_id` continuity — **waived, ADR-008.** Ran into VRUs at ~12-20px on the real feed (352x240, night, rain) before a live tracker call was possible; committed to Variant C instead of debugging IDs post-hoc.
+- [ ] Confidence floor set per class — still needs a real detection to calibrate against; not guessable without one
+- [x] Three polygon zones calibrated for CPW @ 86 St: `vru_approach`, `vehicle_turn_approach`, `conflict_zone` *(hand-eyeballed against `demo/frames/frame_01.jpg`, flagged in config as the least-precise part of the system — sanity-check before demo)*
+- [x] Structured output includes `track_id`, `class`, `confidence`, `bbox`, `zone`, `observed_at` — `TrackObservation` model, exercised by 55 passing tests
+- [ ] `CAR #NN` and `BIKE #NN` visible on screen with correct zone — needs a real Roboflow response; blocked on the key
 
 ## Gate 4 — Conflict Engine (§11–16)
 
@@ -190,9 +194,10 @@ MEASURED_FPS=0.500
 - [x] Failover chain implemented: primary → backup 1 → backup 2 → demo replay
 - [x] `POST /api/camera/failover` forces failover (drives test scenario 5)
 - [x] Camera status reported: `healthy` / `degraded` / `offline` / `fallback`
-- [ ] One known-positive demo replay clip captured (visible vehicle + VRU + interaction)
-- [ ] Replay clip runs through the **identical** Roboflow pipeline (prerecorded input, not prerecorded inference)
-- [ ] UI always labels `● LIVE` or `● DEMO REPLAY` — never presents replay as live
+- [x] Replay exercises the **identical** engine pipeline (zones, tracks, conflict criterion, severity, dedup) — `app/replay.py` + `demo/replay-sequence.json`, real inference substituted with hand-authored *observations* (labelled as such, never presented as live)
+- [x] Both marquee events fire under the committed variant: right-hook (car×bicycle) and pedestrian (truck×person) — verified, `tests/test_perception.py`
+- [ ] One known-positive **video clip** (`.mp4`) captured — PRD §18's literal ask, still open. The JSON replay above satisfies the pipeline honesty requirement but not "screen-recorded footage of the real camera."
+- [ ] UI always labels `● LIVE` or `● DEMO REPLAY` — never presents replay as live (`app/static/*` in flux, not yet confirmed)
 
 ## Gate 6 — NYC Context (§17)
 
@@ -210,7 +215,7 @@ MEASURED_FPS=0.500
 - [x] Scenario 4 — same pair sent 5× → 1 event, not 5 (dedup)
 - [x] Scenario 5 — primary camera unavailable → `switch_camera()`, backup selected
 - [x] Scenario 6 — NYC data API returns 503 → live detection continues, `context.status: unavailable`
-- [x] 6/6 green (33 pytest total)
+- [x] 6/6 scenarios green (55 pytest total, 1 skipped pending `ROBOFLOW_API_KEY`)
 
 ## Gate 8 — Veris (P2 — only if ahead of schedule)
 

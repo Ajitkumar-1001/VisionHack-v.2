@@ -1,14 +1,16 @@
 {
-  "_comment": "PRD §6/§10/§18. temporal_mode and measured_fps are written by scripts/probe_cameras.py at 17:45-18:00 and must match what the UI displays (AC-15). Zone polygons are [[x,y],...] in image pixel space, calibrated manually per camera (§10) - no automatic intersection understanding.",
-
+  "_comment": "PRD \u00a76/\u00a710/\u00a718. temporal_mode and measured_fps are written by scripts/probe_cameras.py at 17:45-18:00 and must match what the UI displays (AC-15). Zone polygons are [[x,y],...] in image pixel space, calibrated manually per camera (\u00a710) - no automatic intersection understanding.",
   "_fps_basis": "Measured by scripts/probe_cameras.py (image-hash comparison, 60 samples/camera). All three ladder cameras land at 0.50-0.51 fps / ~2.0s, so this one figure is honest for every rung: CPW@86 0.500 (31 frames), Exterior@3Ave 0.511 (32), Canal@Chrystie 0.509 (32). The ~2s refresh is a property of the NYCTMC platform, not of one camera.",
-
-  "temporal_mode": "frames",
+  "_temporal_mode_basis": "Revised from 'frames' to 'cooccupancy' (Variant C) per ADR-008. The ByteTrack harness (scripts/test_feed.py) found the live feed is 352x240 at night in rain, putting VRUs at ~12-20px tall - under the ~25px recall floor PRD §9 flags - which makes ID churn likely at 0.5 fps regardless of tracker tuning. §26's fallback rung, taken proactively rather than after a live PASS/FAIL run that credentials do not yet exist to perform.",
+  "temporal_mode": "cooccupancy",
   "measured_fps": 0.5,
-
   "primary": "8a6bc417-4877-4ebe-8052-88c1b261baf1",
-  "fallback_ladder": ["8a6bc417-4877-4ebe-8052-88c1b261baf1", "c145d543-b5f5-4dec-9bb8-7866eafdf054", "8cc75cbc-e050-4947-aee8-639f63fe4ca7", "demo_replay"],
-
+  "fallback_ladder": [
+    "8a6bc417-4877-4ebe-8052-88c1b261baf1",
+    "c145d543-b5f5-4dec-9bb8-7866eafdf054",
+    "8cc75cbc-e050-4947-aee8-639f63fe4ca7",
+    "demo_replay"
+  ],
   "cameras": [
     {
       "id": "8a6bc417-4877-4ebe-8052-88c1b261baf1",
@@ -19,9 +21,60 @@
       "image_url": "https://webcams.nyctmc.org/api/cameras/8a6bc417-4877-4ebe-8052-88c1b261baf1/image",
       "mean_frame_gap_s": 2.0,
       "zones": {
-        "vru_approach": [],
-        "vehicle_turn_approach": [],
-        "conflict_zone": []
+        "vru_approach": [
+          [
+            6,
+            140
+          ],
+          [
+            48,
+            140
+          ],
+          [
+            48,
+            222
+          ],
+          [
+            6,
+            222
+          ]
+        ],
+        "vehicle_turn_approach": [
+          [
+            150,
+            78
+          ],
+          [
+            300,
+            86
+          ],
+          [
+            312,
+            162
+          ],
+          [
+            170,
+            158
+          ]
+        ],
+        "conflict_zone": [
+          [
+            62,
+            150
+          ],
+          [
+            215,
+            155
+          ],
+          [
+            240,
+            215
+          ],
+          [
+            55,
+            208
+          ]
+        ]
       },
       "context": {
         "bike_infrastructure": true,
@@ -33,12 +86,20 @@
         "radius_meters": 250,
         "window": "2021-08-07 to 2026-08-07",
         "on_truck_route": true,
-        "truck_route_streets": ["CENTRAL PARK WEST (Local)", "WEST 86 STREET (Local)", "86 ST TRANSVERSE (Local)"],
+        "truck_route_streets": [
+          "CENTRAL PARK WEST (Local)",
+          "WEST 86 STREET (Local)",
+          "86 ST TRANSVERSE (Local)"
+        ],
         "truck_route_regulation": "NYCDOT Traffic Rules, Section 4-13(d)(2)",
         "source": "NYC Open Data: Motor Vehicle Collisions - Crashes (h9gi-nx95) + New York City Truck Routes (jjja-shxy)",
         "query": "within_circle(location, 40.785302, -73.969353, 250) AND crash_date >= '2021-08-07' AND (number_of_cyclist_injured > 0 OR number_of_pedestrians_injured > 0)",
         "retrieved_at": "2026-08-07T17:48:00-04:00"
-      }
+      },
+      "frame_size": [
+        352,
+        240
+      ]
     },
     {
       "id": "c145d543-b5f5-4dec-9bb8-7866eafdf054",
@@ -69,10 +130,10 @@
       }
     }
   ],
-
   "demo_replay": {
     "id": "demo_replay",
     "clip": "demo/righthook-demo.mp4",
-    "_comment": "Mandatory rung (§18). Prerecorded input, not prerecorded inference - runs through the same Roboflow pipeline (AC-10). Capture by 19:35."
-  }
+    "_comment": "Mandatory rung (\u00a718). Prerecorded input, not prerecorded inference - runs through the same Roboflow pipeline (AC-10). Capture by 19:35."
+  },
+  "_zone_basis": "Polygons are [[x,y],...] in 352x240 image pixel space, hand-calibrated by eye against demo/frames/frame_01.jpg (PRD \u00a710 - manual, no homography, no automatic intersection understanding). Test point is the bbox bottom-centre. These are eyeballed from a single night frame and are the least precise part of the system."
 }

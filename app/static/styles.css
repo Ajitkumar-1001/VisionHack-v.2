@@ -66,3 +66,40 @@ h2 { font-size: 11px; letter-spacing: 0.12em; color: var(--muted); margin-bottom
   color: var(--muted); font-size: 11px; text-align: center;
   border-top: 1px solid var(--line); padding-top: 10px;
 }
+
+/* --- camera stage: overlay must scale with the image, so both live in a
+   position:relative box and the SVG stretches to match. --- */
+.stage { position: relative; width: 100%; background: #000; border-radius: 4px; overflow: hidden; }
+.stage img { width: 100%; display: block; image-rendering: auto; }
+#overlay { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* Zones: fill low enough to never hide the road. */
+#overlay polygon { fill-opacity: 0.13; stroke-width: 1.2; }
+.z-vru { fill: #35d07f; stroke: #35d07f; }
+.z-veh { fill: #5b9bd5; stroke: #5b9bd5; }
+.z-conflict { fill: #ef4444; stroke: #ef4444; stroke-width: 1.6; }
+
+#overlay rect { fill: none; stroke-width: 1.4; }
+.b-vru { stroke: #35d07f; }
+.b-veh { stroke: #5b9bd5; }
+.b-conflict { stroke: #ef4444; stroke-width: 2.2; }
+.b-label { fill: #fff; font: 7px ui-monospace, monospace; paint-order: stroke; stroke: #000; stroke-width: 2px; }
+
+.camera { min-height: 0; display: block; }
+.controls { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.btn {
+  background: #1f242c; color: var(--text); border: 1px solid var(--line);
+  border-radius: 4px; padding: 7px 12px; font: inherit; font-size: 12px; cursor: pointer;
+}
+.btn:hover { border-color: #3a424e; }
+.btn.primary { background: #1d3b2a; border-color: #2c6b48; color: #7ee2ac; }
+
+.legend { margin-top: 8px; font-size: 11px; color: var(--muted); display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.key { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.k-vru { background: #35d07f; } .k-veh { background: #5b9bd5; } .k-conflict { background: #ef4444; }
+
+.src { font-size: 10px; margin-top: 6px; }
+.sev-critical { color: var(--critical); font-weight: 700; }
+.sev-warning { color: var(--warning); font-weight: 700; }
+.sev-conflict { color: var(--critical); font-weight: 700; }
+.disclaimer strong { color: #c9ced6; }

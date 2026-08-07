@@ -16,6 +16,8 @@ from fastapi import APIRouter
 
 from app.agent.engine import AgentEventRequest, Engine
 from app.context.intersection import get_intersection_context
+from app.models.perception import PerceptionFrame
+from app.replay import load_sequence
 
 router = APIRouter()
 
@@ -36,8 +38,11 @@ def status() -> dict[str, Any]:
             "image_url": cam.get("image_url"),
             "status": _engine.cameras.status,
         },
-        # AC-13: derived from the ladder position, never hand-set.
+        # AC-13: both derived, never hand-set. `mode` is which camera rung is
+        # selected; `run_mode` is where the pixels and events on screen came
+        # from. The UI may only show LIVE when both agree.
         "mode": _engine.cameras.mode,
+        "run_mode": _engine.run_mode,
         "agent_state": _engine.state,
         # AC-15: the measured basis travels with every status poll.
         "measured_fps": _engine.measured_fps,
@@ -63,12 +68,81 @@ def get_event(event_id: str) -> dict[str, Any]:
 
 
 @router.post("/perception")
-def perception(payload: dict[str, Any]) -> dict[str, Any]:
-    """Roboflow structured output enters here. §9, §20."""
-    # TODO(§9): group TrackObservations into vehicle/VRU pairs and hand each to
-    # Engine.evaluate(). The decision path itself is already done and tested —
-    # this endpoint only needs the pairing, not new conflict logic.
-    return {"accepted": False, "reason": "perception pairing not implemented"}
+def perception(frame: PerceptionFrame) -> dict[str, Any]:
+    """Roboflow structured output enters here. §9, §20.
+
+    Assigns zones from the camera polygons, updates track state, and hands
+    each vehicle x VRU pair to the conflict criterion.
+    """
+    return _engine.ingest_frame(frame)
+
+
+@router.get("/detections")
+def detections() -> dict[str, Any]:
+    """Last frame's boxes, for the UI overlay. §22."""
+    cam = _engine.cameras.current_camera()
+    return {
+        "frame_index": _engine.frame_index,
+        "frame_size": cam.get("frame_size", [352, 240]),
+        "zones": cam.get("zones", {}),
+        "detections": _engine.last_detections,
+    }
+
+
+@router.post("/replay/step")
+def replay_step(frame_index: int = 0) -> dict[str, Any]:
+    """Feed one frame of the §18 replay sequence through the real pipeline.
+
+    Prerecorded INPUT, not prerecorded inference — zone assignment, tracking,
+    the conflict criterion, severity and dedup all run for real. The
+    observations themselves are synthetic and the UI says so; see
+    /api/replay/info.
+    """
+    seq = load_sequence()
+    frames = seq["frames"]
+    if frame_index == 0:
+        _engine.reset_run()
+    _engine.run_mode = "replay"
+    if frame_index >= len(frames):
+        return {"done": True, "frame_index": frame_index, "total": len(frames)}
+
+    raw = frames[frame_index]
+    result = _engine.ingest_frame(
+        PerceptionFrame.model_validate(
+            {
+                "camera_id": seq["camera_id"],
+                "frame_index": raw["frame_index"],
+                "observed_at": "",
+                "observations": [
+                    {**o, "observed_at": ""} for o in raw["observations"]
+                ],
+            }
+        )
+    )
+    result["note"] = raw.get("note")
+    result["total"] = len(frames)
+    result["done"] = frame_index >= len(frames) - 1
+    return result
+
+
+@router.get("/replay/info")
+def replay_info() -> dict[str, Any]:
+    """What the replay is and is not. Surfaced in the UI so the distinction
+    between real inference and authored observations is never implicit."""
+    seq = load_sequence()
+    return {
+        "frames": len(seq["frames"]),
+        "source": "synthetic observations",
+        "honesty": seq["_honesty"],
+    }
+
+
+@router.post("/run/reset")
+def run_reset() -> dict[str, Any]:
+    """Clear events, tracks and dedup so the demo repeats (AC-14)."""
+    _engine.reset_run()
+    _engine.cameras.reset()
+    return {"reset": True}
 
 
 @router.post("/agent/event")

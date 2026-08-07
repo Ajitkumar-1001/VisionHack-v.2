@@ -70,7 +70,7 @@ Those weights could not be justified honestly, so they do not exist.
 
 ## Measured frame rate and temporal mode
 
-> **Measured 2026-08-07 — Variant B, `temporal_mode: "frames"`.**
+> **Shipped as Variant C, `temporal_mode: "cooccupancy"`.**
 > The chosen camera publishes **0.500 fps — one distinct frame every 2.00 s**,
 > measured over 31 distinct frames in a 60-second poll at 17:45 EDT
 > (`scripts/probe_cameras.py`, which compares image hashes so it counts frames
@@ -78,20 +78,84 @@ Those weights could not be justified honestly, so they do not exist.
 > 6 cameras first put the citywide ceiling at 0.629 fps — nowhere near the
 > ≥10 fps Variant A needs. No sub-second ΔT is claimable, so none is claimed.
 >
+> That frame rate alone would allow Variant B (ΔT counted in whole frames).
+> We went one step further down to **Variant C** because the feed is
+> **352×240, at night, in rain**: a pedestrian is ~12–20 px tall and a cyclist
+> smaller, under the ~25 px small-object floor. ByteTrack associates by IoU, so
+> objects that small moving that far between 2 s samples churn IDs on physics,
+> not on misconfiguration. Rather than count frames off track IDs unlikely to
+> survive, the system claims only what it can defend: **a vehicle and a VRU
+> occupying the conflict zone in the same observed frame.** AC-04 (tracking IDs)
+> is formally waived, which PRD §27 anticipates. Reasoning in ADR-008.
+>
 > Chosen camera: **Central Park West @ 86 St**
 > (`8a6bc417-4877-4ebe-8052-88c1b261baf1`) — two crosswalks, the painted bike
 > lane, and turning traffic all in frame. Full probe table in
 > [`docs/DECISIONS.md`](docs/DECISIONS.md).
 
-| | Variant A | Variant B | Variant C |
+| | Variant A | Variant B | **Variant C — ACTIVE** |
 |---|---|---|---|
 | Sampling | video-rate ≥10 fps | stills ~0.5 fps | tracking unstable |
 | Measurement | ΔT in seconds | ΔT in frames + stated fps | co-occupancy |
 | Displayed as | `ΔT 0.72s` | `Δ 1 frame @ 0.5 fps (≈2.0s)` | `both in zone, same frame` |
 
+**Running Variant C** (ADR-008). At 0.500 fps on a 352×240 night feed, ByteTrack
+associates by IoU across objects that move further than their own size between
+samples — ID continuity is not defensible, so no temporal gap is claimed at all.
+AC-04 (tracking IDs) is waived accordingly. The variant is a config flag: the
+engine implements all three and the test suite asserts against whichever is
+active.
+
 Whatever the feed gives us, the UI states the measured frame rate and the
 temporal mode. A system that says "Δ 1 frame at 0.5 fps" is more credible than
 one that says "ΔT 0.72s" with nothing behind it.
+
+## What is and is not real
+
+The single most important section in this README. Every claim below is
+verifiable from the repo or the live URL.
+
+| Component | Status |
+|---|---|
+| NYC DOT camera feed | **Real.** Live stills from `webcams.nyctmc.org`, polled and displayed. |
+| Measured frame rate | **Real.** 0.500 fps, measured by image-hash dedup over 60 samples. |
+| Zone polygons | **Real,** hand-calibrated by eye against a captured frame. Coarse. |
+| Conflict engine | **Real.** Zone assignment, track state, criterion, severity, dedup — all execute. |
+| NYC Open Data context | **Real.** Two datasets, precomputed, query and retrieval timestamp recorded. |
+| Event JSON | **Real,** emitted by the engine. |
+| Camera failover | **Real.** Three-rung ladder plus a replay rung. |
+| **Roboflow detection** | **NOT WIRED.** The client and smoke test exist; no live inference ran. |
+| **Demo replay observations** | **Synthetic.** Hand-authored bounding boxes, not detector output. |
+
+The replay feeds *authored observations* through the *real* pipeline. Zone
+assignment, tracking, the conflict criterion, severity mapping, dedup, the
+event schema and context attachment all run for real against them — but a
+detector did not produce the boxes. The UI labels any such run `● DEMO REPLAY`,
+`/api/replay/info` says so in plain text, and every event emitted during a
+replay records `camera.mode: "demo_replay"` in its JSON.
+
+**Why Roboflow is not wired.** The chosen camera publishes **352×240** stills,
+and the build window fell after dark in rain. At that resolution a pedestrian
+is 12–20 px and a cyclist smaller — below the ~25 px floor where small-object
+recall collapses. Rather than demo a detector that finds nothing and call it a
+perception system, the pipeline was built and tested against the interface the
+detector will fill. `POST /api/perception` accepts `TrackObservation[]` today;
+wiring Roboflow means parsing its output into that shape, not new logic.
+
+## Try it
+
+```bash
+# The decision path, no camera required:
+curl -X POST https://righthook-nyc-916019111029.us-east1.run.app/api/agent/event \
+  -H 'content-type: application/json' \
+  -d '{"vehicle":{"track_id":34,"class":"car","entered_approach":true,"conflict_entry":100},
+       "vru":{"track_id":51,"class":"bicycle","entered_approach":true,"conflict_entry":100}}'
+
+# One frame of the replay through the full pipeline:
+curl -X POST 'https://righthook-nyc-916019111029.us-east1.run.app/api/replay/step?frame_index=3'
+```
+
+Or open the URL and press **Run demo replay**.
 
 ## Disclaimer
 
@@ -205,9 +269,11 @@ Scenario 6 encodes the failure philosophy: **never fail live safety detection
 because optional enrichment is down.** A dead Open Data API surfaces as
 "Historical context unavailable", never as a 500.
 
-> **Current status: scaffold — 5 skipped, 0 passed.** The six scenarios live in
-> five test modules and all skip pending the engine. Results are reported here
-> honestly as they land; a visible failing test beats a hidden one.
+> **56 passed, 1 skipped** (the skip is the Roboflow smoke test, which needs an
+> API key). All six §21 scenarios pass, plus coverage of the bugs found while
+> building: stale tracks re-firing after the dedup window lapsed, replay events
+> displaying under a LIVE badge, and co-occupancy being evaluated from entry
+> history instead of the present frame.
 
 ## Limitations
 

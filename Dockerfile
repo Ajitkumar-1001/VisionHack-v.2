@@ -11,6 +11,7 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 
 COPY app/ /app/app/
 COPY config/ /app/config/
+COPY demo/replay-sequence.json /app/demo/replay-sequence.json
 
 # Overridden by Cloud Run at runtime; 8080 is the local default.
 ENV PORT=8080

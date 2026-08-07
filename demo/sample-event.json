@@ -1,46 +1,52 @@
 {
-  "event_id": "rh_01J9XYZ",
+  "event_id": "rh_444814f1a6",
   "event_type": "potential_turning_conflict",
-  "timestamp": "2026-08-07T21:24:03Z",
-
+  "timestamp": "2026-08-07T23:33:34Z",
   "camera": {
-    "id": "nyc_cam_01",
+    "id": "8a6bc417-4877-4ebe-8052-88c1b261baf1",
     "mode": "live",
     "measured_fps": 0.5,
-    "temporal_mode": "frames"
+    "temporal_mode": "cooccupancy"
   },
-
   "participants": {
-    "vehicle": { "track_id": 34, "class": "car" },
-    "vru":     { "track_id": 51, "class": "bicycle" }
+    "vehicle": {
+      "track_id": 34,
+      "class": "car"
+    },
+    "vru": {
+      "track_id": 51,
+      "class": "bicycle"
+    }
   },
-
   "observation": {
     "vehicle_entered_turn_zone": true,
     "vru_entered_approach_zone": true,
     "both_entered_conflict_zone": true,
-    "temporal_gap_frames": 1,
-    "temporal_gap_seconds_estimate": 2.0,
+    "same_frame_cooccupancy": true,
     "measurement_basis": "observed zone-entry timestamps"
   },
-
   "decision": {
-    "severity": "warning",
+    "severity": "conflict",
     "action": "create_safety_event"
   },
-
   "location": {
-    "intersection": "Example Ave & Example St",
-    "latitude": 40.0000,
-    "longitude": -73.0000
+    "intersection": "Central Park West & W 86 St, Manhattan",
+    "latitude": 40.785302,
+    "longitude": -73.969353
   },
-
   "context": {
     "status": "available",
     "bike_infrastructure": true,
-    "facility_type": "protected bike lane",
-    "historical_cyclist_collisions": 14
+    "facility_type": "painted bike lane on Central Park West, visible in camera frame",
+    "historical_cyclist_collisions": 16,
+    "on_truck_route": true,
+    "truck_route_streets": [
+      "CENTRAL PARK WEST (Local)",
+      "WEST 86 STREET (Local)",
+      "86 ST TRANSVERSE (Local)"
+    ],
+    "source": "NYC Open Data: Motor Vehicle Collisions - Crashes (h9gi-nx95) + New York City Truck Routes (jjja-shxy)",
+    "retrieved_at": "2026-08-07T17:48:00-04:00"
   },
-
   "disclaimer": "Heuristic conflict detection. Not a calibrated crash-risk probability."
 }

@@ -31,6 +31,9 @@ from app.agent.dedup import Dedup
 from app.agent.state import AgentState, next_state
 from app.cameras.manager import CameraManager
 from app.context.intersection import get_intersection_context
+from app.models.perception import PerceptionFrame
+from app.vision.tracks import TrackStore
+from app.vision.zones import zone_for
 from app.models.event import (
     CameraBlock,
     Decision,
@@ -75,6 +78,128 @@ class Engine:
         self.state = AgentState.NORMAL
         self.last_delta_display: str | None = None
         self.last_severity: str | None = None
+        self.tracks = TrackStore()
+        self.frame_index = 0
+        self.last_detections: list[dict[str, Any]] = []
+        # AC-13. Whether what is currently ON SCREEN came from the live feed or
+        # from the replay sequence. Distinct from cameras.mode, which describes
+        # which camera rung is selected. Both must say "live" before the badge
+        # may claim it — otherwise replay-produced events sit under a LIVE
+        # label, which is the one thing §18 forbids outright.
+        self.run_mode = "live"
+
+    def ingest_frame(self, frame: PerceptionFrame) -> dict[str, Any]:
+        """One frame of Roboflow output -> zone assignment -> conflict check.
+
+        §9-§11. This is the only path between perception and the decision
+        engine, and it adds no conflict logic of its own — it assigns zones,
+        updates track state, then hands each vehicle x VRU pair to evaluate().
+        """
+        cam = self.cameras.current_camera()
+        zones = cam.get("zones", {})
+        self.frame_index = frame.frame_index
+
+        seen = []
+        for obs in frame.observations:
+            # Trust a zone the workflow already assigned; otherwise compute it
+            # from the polygons so the engine works with a bare detector too.
+            if obs.zone is None:
+                obs.zone = zone_for(obs.bbox, zones)
+            st = self.tracks.update(obs, frame.frame_index)
+            seen.append(
+                {
+                    "track_id": obs.track_id,
+                    "class": obs.cls,
+                    "bbox": obs.bbox,
+                    "zone": obs.zone.value if obs.zone else None,
+                    "entered_approach": st.entered_approach,
+                }
+            )
+        self.last_detections = seen
+        self.tracks.evict(frame.frame_index)
+
+        vehicles, vrus = self.tracks.candidates(frame.frame_index)
+
+        # §12 Variant C asks a present-tense question — are both IN the conflict
+        # zone in THIS frame — not whether their first entries happened to
+        # coincide. Answering it from entry history would fire on two road users
+        # who merely arrived on the same frame and have since separated, and
+        # would miss the pair actually sharing the box right now.
+        cooccupancy = self.temporal_mode is TemporalMode.COOCCUPANCY
+        if cooccupancy:
+            in_zone = lambda t: t.last_zone == "conflict_zone"
+            vehicles = [t for t in vehicles if in_zone(t)]
+            vrus = [t for t in vrus if in_zone(t)]
+
+        results = []
+        for v in vehicles:
+            for u in vrus:
+                req = AgentEventRequest(
+                    vehicle=ParticipantInput.model_validate(
+                        {
+                            "track_id": v.track_id,
+                            "class": v.cls,
+                            "entered_approach": v.entered_approach,
+                            "conflict_entry": frame.frame_index
+                            if cooccupancy
+                            else v.conflict_entry_frame,
+                        }
+                    ),
+                    vru=ParticipantInput.model_validate(
+                        {
+                            "track_id": u.track_id,
+                            "class": u.cls,
+                            "entered_approach": u.entered_approach,
+                            "conflict_entry": frame.frame_index
+                            if cooccupancy
+                            else u.conflict_entry_frame,
+                        }
+                    ),
+                )
+                # Dedup must run on SCENE time, not wall time. Frames are
+                # ~2s apart in the world but arrive in milliseconds during a
+                # replay, which would let the §15 zone floor suppress a
+                # genuinely separate interaction minutes later in scene terms.
+                fps = self.measured_fps or 0.5
+                out = self.evaluate(req, now=frame.frame_index / fps)
+                if out.get("event"):
+                    results.append(out)
+
+        # WATCH is a UI/state condition, not a ΔT band (§12): both roles are
+        # approaching and neither has reached the conflict zone yet.
+        if not results and self.state is not AgentState.ALERT_CREATED:
+            approaching_v = any(
+                t.entered_approach and t.conflict_entry_frame is None
+                for t in self.tracks.tracks.values()
+                if t.is_vehicle
+            )
+            approaching_u = any(
+                t.entered_approach and t.conflict_entry_frame is None
+                for t in self.tracks.tracks.values()
+                if not t.is_vehicle
+            )
+            self.state = (
+                AgentState.WATCH if (approaching_v and approaching_u) else AgentState.NORMAL
+            )
+
+        return {
+            "frame_index": frame.frame_index,
+            "detections": seen,
+            "events_created": len(results),
+            "agent_state": self.state,
+        }
+
+    def reset_run(self) -> None:
+        """Clear per-run state so the demo repeats without a redeploy (AC-14)."""
+        self.tracks.clear()
+        self.dedup.reset()
+        self.events.clear()
+        self.state = AgentState.NORMAL
+        self.last_delta_display = None
+        self.last_severity = None
+        self.last_detections = []
+        self.frame_index = 0
+        self.run_mode = "live"
 
     @property
     def temporal_mode(self) -> TemporalMode:
@@ -172,8 +297,12 @@ class Engine:
             event_id=f"rh_{uuid.uuid4().hex[:10]}",
             timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             camera=CameraBlock(
+                # AC-13 again, and here it matters most: the event JSON is the
+                # artifact that outlives the demo. A replay-produced event that
+                # says "live" is a false record, so run_mode overrides the
+                # camera rung whenever a replay produced the observation.
                 id=str(self.cameras.current_id),
-                mode=self.cameras.mode,
+                mode="demo_replay" if self.run_mode == "replay" else self.cameras.mode,
                 measured_fps=self.measured_fps,
                 temporal_mode=mode,
             ),

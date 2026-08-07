@@ -1,25 +1,32 @@
-// Polls /api/status and repaints. No framework, no build step — the UI ships
-// inside the same Cloud Run container as the engine (PRD §19).
+// One screen, no framework, no build step. Ships inside the same Cloud Run
+// container as the engine (PRD §19).
 //
-// Scaffold state: the endpoints return honest placeholders until the engine
-// lands, so every field degrades to a dash rather than throwing.
+// Two loops: a status poll that keeps the panels honest, and a replay driver
+// that steps the §18 sequence through the real pipeline on demand.
 
-const POLL_MS = 1000;
-
+const POLL_MS = 2000;
+const REPLAY_STEP_MS = 1400;
 const $ = (id) => document.getElementById(id);
 
-// AC-15: whatever variant we land on, the UI states the measured frame rate and
-// the temporal mode. A system that says "Δ 1 frame at 0.5 fps" is more credible
-// than one that says "ΔT 0.72s" with nothing behind it.
+let replayTimer = null;
+
+// AC-15 / §7 rule 7. Every number on screen carries its measurement basis.
 function renderFps(s) {
   const fps = s.measured_fps == null ? "—" : `${s.measured_fps} fps`;
-  const mode = { seconds: "second-delta mode", frames: "frame-delta mode", cooccupancy: "co-occupancy mode" }[s.temporal_mode] || "mode pending probe";
+  const mode = {
+    seconds: "second-delta mode",
+    frames: "frame-delta mode",
+    cooccupancy: "co-occupancy mode",
+  }[s.temporal_mode] || "mode pending probe";
   $("fps-line").textContent = `${fps} · ${mode}`;
 }
 
-// AC-13: never present prerecorded footage as live.
+// AC-13. Never present prerecorded footage as live.
 function renderMode(s) {
-  const live = s.mode === "live";
+  // Three independent conditions, all must hold. run_mode catches the case
+  // that matters most: a replay driven from another tab or by curl leaving
+  // replay events on screen under a LIVE badge.
+  const live = s.mode === "live" && s.run_mode === "live" && !replayTimer;
   const badge = $("mode-badge");
   badge.textContent = live ? "● LIVE" : "● DEMO REPLAY";
   badge.className = `badge ${live ? "badge-live" : "badge-replay"}`;
@@ -27,14 +34,17 @@ function renderMode(s) {
 
 function renderState(s) {
   const sev = $("severity");
-  sev.textContent = s.agent_state || "NORMAL";
+  const label = s.severity ? s.severity.toUpperCase() : s.agent_state || "NORMAL";
+  sev.textContent = label;
   sev.className = `severity ${(s.severity || "").toLowerCase()}`;
+  $("agent-state").textContent = `agent state: ${s.agent_state || "NORMAL"}`;
   $("delta").textContent = s.delta_display || "—";
-  $("event-flag").textContent = s.agent_state === "ALERT_CREATED" ? "SAFETY EVENT CREATED" : "";
+  $("event-flag").textContent =
+    s.agent_state === "ALERT_CREATED" ? "SAFETY EVENT CREATED" : "";
 }
 
 // AC-11 + §17: the Open Data layer renders in its own region and never touches
-// severity. Unavailable is a legitimate state (scenario 6), not an error.
+// severity. "unavailable" is a legitimate state (scenario 6), not an error.
 function renderContext(c) {
   if (!c || c.status !== "available") {
     $("context-line").textContent = "Historical context unavailable";
@@ -42,15 +52,15 @@ function renderContext(c) {
   }
   const parts = [];
   if (c.historical_cyclist_collisions != null) {
-    parts.push(`${c.historical_cyclist_collisions} cyclist-injury collisions within 250m (2021–2026)`);
+    parts.push(`${c.historical_cyclist_collisions} cyclist-injury collisions within 250 m (2021–2026)`);
   }
   if (c.facility_type) parts.push(c.facility_type);
   if (c.on_truck_route) {
     const n = (c.truck_route_streets || []).length;
     parts.push(n ? `on ${n} designated truck routes` : "on a designated truck route");
   }
-  if (c.source) parts.push(`source: ${c.source}`);
   $("context-line").textContent = parts.join(" · ");
+  $("context-source").textContent = c.source || "";
 }
 
 function renderEvents(events) {
@@ -60,8 +70,46 @@ function renderEvents(events) {
     return;
   }
   ul.innerHTML = events
-    .map((e) => `<li>${e.timestamp || "--:--"}  ${(e.decision?.severity || "").toUpperCase()}  ${e.summary || ""}</li>`)
+    .map((e) => {
+      const p = e.participants;
+      const o = e.observation;
+      const d = o.temporal_gap_frames != null
+        ? `Δ ${o.temporal_gap_frames} frame${o.temporal_gap_frames === 1 ? "" : "s"}`
+        : o.same_frame_cooccupancy ? "same frame"
+        : `ΔT ${o.temporal_gap_seconds}s`;
+      const sev = e.decision.severity.toUpperCase();
+      const t = (e.timestamp || "").slice(11, 19);
+      return `<li><span class="sev-${e.decision.severity}">${sev}</span> ${t}  ${p.vehicle.class} #${p.vehicle.track_id} × ${p.vru.class} #${p.vru.track_id}  ${d}</li>`;
+    })
     .join("");
+}
+
+// Zones and boxes are drawn in the camera's native pixel space and scaled by
+// the SVG viewBox, so the overlay stays aligned at any panel width.
+function renderOverlay(d) {
+  const [w, h] = d.frame_size || [352, 240];
+  const svg = $("overlay");
+  svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+
+  const poly = (pts, cls) =>
+    pts && pts.length >= 3
+      ? `<polygon class="${cls}" points="${pts.map((p) => p.join(",")).join(" ")}"/>`
+      : "";
+
+  const zones = d.zones || {};
+  let out =
+    poly(zones.vru_approach, "z-vru") +
+    poly(zones.vehicle_turn_approach, "z-veh") +
+    poly(zones.conflict_zone, "z-conflict");
+
+  for (const det of d.detections || []) {
+    const [x1, y1, x2, y2] = det.bbox;
+    const vru = det.class === "bicycle" || det.class === "person";
+    const cls = det.zone === "conflict_zone" ? "b-conflict" : vru ? "b-vru" : "b-veh";
+    out += `<rect class="${cls}" x="${x1}" y="${y1}" width="${x2 - x1}" height="${y2 - y1}"/>`;
+    out += `<text class="b-label" x="${x1}" y="${y1 - 2}">${det.class.toUpperCase()} #${det.track_id}</text>`;
+  }
+  svg.innerHTML = out;
 }
 
 async function tick() {
@@ -71,16 +119,56 @@ async function tick() {
     renderFps(s);
     renderState(s);
     $("sys-cloudrun").textContent = "Cloud Run ✓";
+    $("camera-name").textContent = s.camera?.name || "—";
 
-    const { events } = await (await fetch("/api/events")).json();
-    renderEvents(events);
+    // Cache-bust: the feed serves a new still roughly every 2 s.
+    if (s.camera?.image_url && !replayTimer) {
+      $("camera-img").src = `${s.camera.image_url}?t=${Date.now()}`;
+    }
 
+    renderEvents((await (await fetch("/api/events")).json()).events);
     renderContext(await (await fetch("/api/context")).json());
+    renderOverlay(await (await fetch("/api/detections")).json());
   } catch {
     // §21 failure philosophy: a dead enrichment call must never blank the screen.
     $("sys-cloudrun").textContent = "Cloud Run ⚠";
   }
 }
+
+async function runReplay() {
+  if (replayTimer) return;
+  await fetch("/api/run/reset", { method: "POST" });
+  const info = await (await fetch("/api/replay/info")).json();
+  $("replay-note").textContent = `Replay: ${info.frames} frames of ${info.source} through the live pipeline`;
+
+  let i = 0;
+  replayTimer = setInterval(async () => {
+    const r = await (
+      await fetch(`/api/replay/step?frame_index=${i}`, { method: "POST" })
+    ).json();
+    if (r.note) $("replay-note").textContent = `f${r.frame_index}: ${r.note}`;
+    renderOverlay(await (await fetch("/api/detections")).json());
+    await tick();
+    if (r.done || i >= (r.total || 8) - 1) {
+      clearInterval(replayTimer);
+      replayTimer = null;
+      $("replay-btn").textContent = "▶ Run demo replay";
+    }
+    i += 1;
+  }, REPLAY_STEP_MS);
+  $("replay-btn").textContent = "● replaying…";
+}
+
+$("replay-btn").addEventListener("click", runReplay);
+$("failover-btn").addEventListener("click", async () => {
+  await fetch("/api/camera/failover", { method: "POST" });
+  tick();
+});
+$("reset-btn").addEventListener("click", async () => {
+  await fetch("/api/run/reset", { method: "POST" });
+  $("replay-note").textContent = "";
+  tick();
+});
 
 tick();
 setInterval(tick, POLL_MS);

@@ -10,9 +10,11 @@ __pycache__/
 
 .claude-flow/
 .DS_Store
+graphify-out/
 
 # Screen recordings are large; the one demo clip is committed deliberately by
 # name (§18 makes the replay mandatory), everything else stays out.
 demo/recordings/
 *.mov
 demo/frames/
+.gstack/

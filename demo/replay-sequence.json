@@ -1,0 +1,73 @@
+{
+  "_comment": "PRD §18 demo replay, Variant B. A hand-authored right-hook sequence in 352x240 image space, matching demo/frames/frame_01.jpg and the polygons in config/cameras.json. Bboxes are [x1,y1,x2,y2]; the engine tests the bottom-centre point. Frame indices are the temporal unit under temporal_mode 'frames' at 0.500 fps (~2.0s apart).",
+  "_honesty": "These are SYNTHETIC observations, not Roboflow output. They exercise the real zone assignment, the real track store, the real conflict criterion, the real severity map and the real dedup — but the detections themselves are authored, not detected. The UI labels this run 'REPLAY (synthetic observations)' and it must never be presented as live inference. See README 'What is and is not real'.",
+
+  "camera_id": "8a6bc417-4877-4ebe-8052-88c1b261baf1",
+  "temporal_mode": "frames",
+
+  "frames": [
+    {
+      "frame_index": 0,
+      "note": "Car #34 appears in the turn approach up the avenue. Cyclist #51 waits at the kerb.",
+      "observations": [
+        {"track_id": 34, "class": "car", "confidence": 0.91, "bbox": [246, 96, 286, 128]},
+        {"track_id": 51, "class": "bicycle", "confidence": 0.63, "bbox": [24, 176, 44, 208]}
+      ]
+    },
+    {
+      "frame_index": 1,
+      "note": "Car closes on the crossing, still in its approach. Cyclist still kerbside. -> WATCH",
+      "observations": [
+        {"track_id": 34, "class": "car", "confidence": 0.89, "bbox": [206, 104, 250, 138]},
+        {"track_id": 51, "class": "bicycle", "confidence": 0.66, "bbox": [30, 178, 50, 210]}
+      ]
+    },
+    {
+      "frame_index": 2,
+      "note": "Cyclist enters the crosswalk. Car still short of it. No event yet - one party only.",
+      "observations": [
+        {"track_id": 34, "class": "car", "confidence": 0.88, "bbox": [186, 112, 232, 146]},
+        {"track_id": 51, "class": "bicycle", "confidence": 0.61, "bbox": [82, 168, 104, 200]}
+      ]
+    },
+    {
+      "frame_index": 3,
+      "note": "THE RIGHT HOOK. Car turns across the crossing while the cyclist is in it. Both in conflict_zone, one frame apart -> WARNING.",
+      "observations": [
+        {"track_id": 34, "class": "car", "confidence": 0.90, "bbox": [128, 150, 178, 188]},
+        {"track_id": 51, "class": "bicycle", "confidence": 0.64, "bbox": [104, 166, 126, 198]}
+      ]
+    },
+    {
+      "frame_index": 4,
+      "note": "Both still present. Dedup must suppress a second event for the same pair.",
+      "observations": [
+        {"track_id": 34, "class": "car", "confidence": 0.87, "bbox": [110, 158, 160, 196]},
+        {"track_id": 51, "class": "bicycle", "confidence": 0.60, "bbox": [122, 168, 144, 200]}
+      ]
+    },
+    {
+      "frame_index": 5,
+      "note": "Pedestrian #67 steps off the kerb as a second vehicle approaches.",
+      "observations": [
+        {"track_id": 67, "class": "person", "confidence": 0.78, "bbox": [30, 170, 42, 202]},
+        {"track_id": 88, "class": "truck", "confidence": 0.85, "bbox": [238, 100, 288, 138]}
+      ]
+    },
+    {
+      "frame_index": 6,
+      "note": "Truck #88 and pedestrian #67 enter the crossing in the SAME frame -> CRITICAL.",
+      "observations": [
+        {"track_id": 67, "class": "person", "confidence": 0.74, "bbox": [96, 168, 110, 202]},
+        {"track_id": 88, "class": "truck", "confidence": 0.83, "bbox": [140, 148, 196, 190]}
+      ]
+    },
+    {
+      "frame_index": 7,
+      "note": "Scene clears.",
+      "observations": [
+        {"track_id": 88, "class": "truck", "confidence": 0.80, "bbox": [70, 168, 126, 210]}
+      ]
+    }
+  ]
+}

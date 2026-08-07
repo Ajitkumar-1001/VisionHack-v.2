@@ -17,8 +17,13 @@ __pycache__/
 # particular is large and is never read by the container.
 *.md
 docs/
-demo/
 tests/
+
+# demo/ is excluded EXCEPT the replay sequence, which is load-bearing runtime
+# data (§18): the container serves /api/replay/step from it. An image without
+# it starts fine and then 500s the moment anyone presses the demo button.
+demo/**
+!demo/replay-sequence.json
 scripts/
 
 .DS_Store

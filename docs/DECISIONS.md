@@ -148,3 +148,33 @@ claim — the city routes heavy vehicles through both axes of an intersection a
 protected bike lane crosses, with 28 VRU-injury collisions within 250 m in five
 years. Historical context stays context: it never modifies live event severity
 (§17).
+
+---
+
+## ADR-008 — Committed to Variant C (`cooccupancy`) without a live ByteTrack run
+
+**Status:** ACCEPTED — 2026-08-07 ~19:30 EDT (revises the tracking side of ADR-001)
+
+ADR-001 locked Variant B (`frames`) on frame rate alone and left the ByteTrack
+PASS/FAIL check for later. `scripts/test_feed.py`'s Stage 1 (frame capture,
+credential-free) ran and surfaced a second fact ADR-001 didn't have: the feed
+is 352x240, captured after dark in rain. At that resolution a pedestrian is
+~12-20px tall and a cyclist smaller — under the ~25px small-object recall
+floor PRD §9 already flags. ByteTrack associates by IoU; objects this small
+moving this far between ~2s samples churn IDs on physics, not misconfiguration
+— the exact trigger §6/§26 describe for dropping to Variant C.
+
+Stage 2 (the live PASS/FAIL tabulation against the real tracker) is still
+blocked on `ROBOFLOW_API_KEY`, which is not set anywhere in this environment.
+Rather than block the conflict-engine milestone on a credential, and given the
+resolution/lighting evidence already points at Variant C, made the call now.
+
+**Decision:** `config/cameras.json` → `temporal_mode: "cooccupancy"`. No
+engine change required — `severity.py`, `state.py` and `TrackStore` already
+handle all three variants as a config lookup, per ADR-001's original design.
+
+**Consequence:** AC-04 (tracking IDs) is formally waived, as PRD §27 already
+anticipates. Severity collapses to a single `CONFLICT` band — no
+CRITICAL/WARNING split — which is a smaller, more honest claim than a frame
+count off IDs unlikely to survive. If Stage 2 later runs and IDs prove stable
+after all, this reverts to `frames` in one config edit; nothing else changes.
