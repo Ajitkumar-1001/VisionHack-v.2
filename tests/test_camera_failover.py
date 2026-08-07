@@ -47,3 +47,18 @@ def test_failover_at_the_last_rung_does_not_crash():
     result = m.switch_camera()
     assert result["switched"] is False
     assert m.current_id == "demo_replay"
+
+
+def test_reset_returns_to_primary(client):
+    """AC-14: the demo runs repeatedly. Failover is one-way, so without a reset
+    the second rehearsal starts on a backup camera."""
+    primary = client.get("/api/status").json()["camera"]["id"]
+    client.post("/api/camera/failover")
+    assert client.get("/api/status").json()["camera"]["id"] != primary
+
+    client.post("/api/camera/reset")
+
+    after = client.get("/api/status").json()
+    assert after["camera"]["id"] == primary
+    assert after["camera"]["status"] == "healthy"
+    assert after["mode"] == "live"

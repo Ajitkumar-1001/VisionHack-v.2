@@ -9,12 +9,12 @@
 
 ## 0. Current Status
 
-**Build phase:** Phase 1 — Cloud Run
+**Build phase:** Phase 3 — Roboflow perception (engine + context already landed)
 **Overall status:** 🟡 IN PROGRESS
 
 **Current camera:** Central Park West @ 86 St (`8a6bc417-4877-4ebe-8052-88c1b261baf1`)
-**Input mode:** NYCTMC stills (~1 distinct frame / 2.04 s)
-**Measured FPS:** 0.489
+**Input mode:** NYCTMC stills (1 distinct frame / 2.00 s)
+**Measured FPS:** 0.500 (31 distinct frames over 60 s)
 **Temporal mode:** `frames` (Variant B)
 
 Allowed temporal modes:
@@ -23,13 +23,46 @@ Allowed temporal modes:
 - `frames`
 - `cooccupancy`
 
-**Cloud Run URL:** TBD
+## Cloud Run baseline — FROZEN 2026-08-07 18:51 EDT
+
+**Cloud Run:** ✅
+**Health endpoint:** ✅
+**Public UI:** ✅
+
+```text
+CLOUD_RUN_URL=https://righthook-nyc-916019111029.us-east1.run.app
+```
+
+Serving revision `righthook-nyc-00002-kzq`. Deployed by explicit image
+build/push, not `--source`: the default compute service account lacks Cloud
+Build permissions on this fresh project, and routing around it was faster than
+granting the role. Redeploy loop (the only sanctioned reason to touch deploy
+config again):
+
+```bash
+IMG=us-east1-docker.pkg.dev/cloudrun-hack26nyc-4318/cloud-run-source-deploy/righthook-nyc:vN
+docker build --platform linux/amd64 -t $IMG . && docker push $IMG \
+  && gcloud run deploy righthook-nyc --image $IMG --region us-east1 --quiet
+```
+
+`--platform linux/amd64` is load-bearing — the build host is arm64.
+
+**CURRENT:** Gate 3 — Roboflow perception. `POST /api/perception` is the last
+gap to live detection; it needs pairing only, not new conflict logic.
+**NEXT:** Calibrate the three zone polygons for CPW @ 86 St (still `[]`).
+**DO NOT:** Modify Cloud Run or IAM configuration. Baseline is frozen.
+
+> Gate 2 (measure effective FPS → choose temporal mode) closed at 17:45:
+> **0.500 fps, Variant B, `temporal_mode: frames`**. Recorded in ADR-001 and
+> `config/cameras.json`.
+
+---
 
 **Roboflow:** ⬜
-**Conflict Engine:** ⬜
-**Camera Failover:** ⬜
-**NYC Context:** ✅ (data precomputed into `config/cameras.json`; serving code pending)
-**pytest:** ⬜
+**Conflict Engine:** ✅ (33 pytest green)
+**Camera Failover:** ✅ (+ `POST /api/camera/reset` so the demo repeats — AC-14)
+**NYC Context:** ✅ (precomputed, served, and rendered)
+**pytest:** ✅ (33 passing; all six §21 scenarios)
 **Veris:** ⬜
 **Demo Replay:** ⬜
 **README:** ⬜
@@ -42,16 +75,16 @@ These must be completed.
 
 ## Gate 1 — Cloud Run
 
-- [ ] FastAPI app starts locally
-- [ ] `GET /`
-- [ ] `GET /health`
-- [ ] Dockerfile works
-- [ ] Service deployed to Google Cloud Run
-- [ ] Public `.run.app` URL responds
-- [ ] Save Cloud Run URL here:
+- [x] FastAPI app starts locally
+- [x] `GET /`
+- [x] `GET /health`
+- [x] Dockerfile works
+- [x] Service deployed to Google Cloud Run
+- [x] Public `.run.app` URL responds
+- [x] Save Cloud Run URL here:
 
 ```text
-CLOUD_RUN_URL=
+CLOUD_RUN_URL=https://righthook-nyc-916019111029.us-east1.run.app
 ```
 
 ## Gate 2 — Frame-Rate Probe (§6)
@@ -70,7 +103,7 @@ CLOUD_RUN_URL=
 ```text
 VARIANT=B
 TEMPORAL_MODE=frames
-MEASURED_FPS=0.489
+MEASURED_FPS=0.500
 ```
 
 ## Gate 3 — Roboflow Perception (§9–10)
@@ -85,21 +118,21 @@ MEASURED_FPS=0.489
 
 ## Gate 4 — Conflict Engine (§11–16)
 
-- [ ] Zone-entry observation recorded (never predicted) for both VRU and vehicle
-- [ ] ΔT = `abs(vru_conflict_time - vehicle_conflict_time)` computed from observed timestamps
-- [ ] Event criterion implemented: both approach-zone entries + both conflict-zone entries + within threshold
-- [ ] Severity mapping wired for the committed variant (§12 lookup table)
-- [ ] State machine implemented: `NORMAL → WATCH → CONFLICT → ALERT_CREATED`
-- [ ] Three agent actions wired: `create_safety_event()`, `get_intersection_context()`, `switch_camera()`
-- [ ] Deduplication: TTL 5–10s keyed on `{vehicle_track_id}:{vru_track_id}`; zone-level fallback suppression if IDs thrash (Variant B/C)
-- [ ] Event JSON matches §16 schema, including `measurement_basis` and `disclaimer`
-- [ ] `SEVERITY` + `SAFETY EVENT CREATED` fires end-to-end
+- [x] Zone-entry observation recorded (never predicted) for both VRU and vehicle *(engine side; live recording waits on Gate 3)*
+- [x] ΔT = `abs(vru_conflict_time - vehicle_conflict_time)` computed from observed timestamps
+- [x] Event criterion implemented: both approach-zone entries + both conflict-zone entries + within threshold
+- [x] Severity mapping wired for the committed variant (§12 lookup table)
+- [x] State machine implemented: `NORMAL → WATCH → CONFLICT → ALERT_CREATED` *(no TTL decay back to NORMAL yet — needs the perception loop to drive the clock)*
+- [x] Three agent actions wired: `create_safety_event()`, `get_intersection_context()`, `switch_camera()`
+- [x] Deduplication: TTL 5–10s keyed on `{vehicle_track_id}:{vru_track_id}`; zone-level fallback suppression if IDs thrash (Variant B/C)
+- [x] Event JSON matches §16 schema, including `measurement_basis` and `disclaimer` *(variant-inapplicable fields omitted, not null)*
+- [x] `SEVERITY` + `SAFETY EVENT CREATED` fires end-to-end *(via `POST /api/agent/event`; camera-driven path waits on Gate 3)*
 
 ## Gate 5 — Camera Failover & Demo Replay (§18)
 
-- [ ] Failover chain implemented: primary → backup 1 → backup 2 → demo replay
-- [ ] `POST /api/camera/failover` forces failover (drives test scenario 5)
-- [ ] Camera status reported: `healthy` / `degraded` / `offline` / `fallback`
+- [x] Failover chain implemented: primary → backup 1 → backup 2 → demo replay
+- [x] `POST /api/camera/failover` forces failover (drives test scenario 5)
+- [x] Camera status reported: `healthy` / `degraded` / `offline` / `fallback`
 - [ ] One known-positive demo replay clip captured (visible vehicle + VRU + interaction)
 - [ ] Replay clip runs through the **identical** Roboflow pipeline (prerecorded input, not prerecorded inference)
 - [ ] UI always labels `● LIVE` or `● DEMO REPLAY` — never presents replay as live
@@ -107,20 +140,20 @@ MEASURED_FPS=0.489
 ## Gate 6 — NYC Context (§17)
 
 - [x] Intersection context precomputed and pasted into `config/cameras.json` (not queried live)
-- [x] Context includes `bike_infrastructure`, `facility_type`, `historical_cyclist_collisions`, `source`, `retrieved_at` (+ truck-route fields, ADR-002)
-- [ ] `get_intersection_context()` failure is non-fatal — surfaces as `context.status: "unavailable"`, never a 500
-- [ ] `GET /api/context` returns the context block
-- [ ] History never modifies live event severity — rendered in a separate UI region
+- [x] Context includes `bike_infrastructure`, `facility_type`, `historical_cyclist_collisions`, `source`, `retrieved_at` (+ truck-route fields, ADR-007)
+- [x] `get_intersection_context()` failure is non-fatal — surfaces as `context.status: "unavailable"`, never a 500
+- [x] `GET /api/context` returns the context block
+- [x] History never modifies live event severity — rendered in a separate UI region (`#context-line`)
 
 ## Gate 7 — pytest Verification (§21)
 
-- [ ] Scenario 1 — both in conflict zone, Δ below critical threshold → `severity: critical`, one event
-- [ ] Scenario 2 — both in conflict zone, Δ in warning band → `severity: warning`, one event
-- [ ] Scenario 3 — VRU in conflict zone, vehicle not → no event
-- [ ] Scenario 4 — same pair sent 5× → 1 event, not 5 (dedup)
-- [ ] Scenario 5 — primary camera unavailable → `switch_camera()`, backup selected
-- [ ] Scenario 6 — NYC data API returns 503 → live detection continues, `context.status: unavailable`
-- [ ] 6/6 green
+- [x] Scenario 1 — both in conflict zone, Δ below critical threshold → `severity: critical`, one event
+- [x] Scenario 2 — both in conflict zone, Δ in warning band → `severity: warning`, one event
+- [x] Scenario 3 — VRU in conflict zone, vehicle not → no event
+- [x] Scenario 4 — same pair sent 5× → 1 event, not 5 (dedup)
+- [x] Scenario 5 — primary camera unavailable → `switch_camera()`, backup selected
+- [x] Scenario 6 — NYC data API returns 503 → live detection continues, `context.status: unavailable`
+- [x] 6/6 green (33 pytest total)
 
 ## Gate 8 — Veris (P2 — only if ahead of schedule)
 
@@ -198,18 +231,18 @@ Each rung is a **complete, honest, demo-able product**. Dropping down is not fai
 
 | Done | ID | Criterion |
 |---|---|---|
-| ⬜ | AC-01 | A public Google Cloud Run URL exists and responds |
+| ✅ | AC-01 | A public Google Cloud Run URL exists and responds |
 | ⬜ | AC-02 | At least one NYC feed (live or replay) reaches Roboflow |
 | ⬜ | AC-03 | Vehicles and VRUs are detected |
 | ⬜ | AC-04 | Objects receive tracking IDs *(waived under Variant C — README states this)* |
 | ⬜ | AC-05 | Camera-specific polygons are configured and visible |
 | ⬜ | AC-06 | RightHook detects valid spatial + temporal overlap |
-| ⬜ | AC-07 | Detection causes `CREATE_SAFETY_EVENT` |
-| ⬜ | AC-08 | Repeated frames do not create duplicate events |
-| ⬜ | AC-09 | A failed camera produces fallback behaviour |
+| ✅ | AC-07 | Detection causes `CREATE_SAFETY_EVENT` |
+| ✅ | AC-08 | Repeated frames do not create duplicate events |
+| ✅ | AC-09 | A failed camera produces fallback behaviour |
 | ⬜ | AC-10 | Demo replay runs through the *same* inference pipeline |
-| ⬜ | AC-11 | At least one NYC Open Data source is attached as context |
-| ⬜ | AC-12 | Test scenarios execute and results are reported honestly |
+| ✅ | AC-11 | At least one NYC Open Data source is attached as context (two: h9gi-nx95 + jjja-shxy) |
+| ✅ | AC-12 | Test scenarios execute and results are reported honestly (33 green) |
 | ⬜ | AC-13 | UI visibly differentiates `● LIVE` from `● DEMO REPLAY` |
 | ⬜ | AC-14 | The full demo runs repeatedly without manual code changes |
 | ⬜ | AC-15 | Measured frame rate and temporal mode are displayed in the UI |

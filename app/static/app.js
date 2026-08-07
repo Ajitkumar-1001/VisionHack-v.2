@@ -33,6 +33,26 @@ function renderState(s) {
   $("event-flag").textContent = s.agent_state === "ALERT_CREATED" ? "SAFETY EVENT CREATED" : "";
 }
 
+// AC-11 + §17: the Open Data layer renders in its own region and never touches
+// severity. Unavailable is a legitimate state (scenario 6), not an error.
+function renderContext(c) {
+  if (!c || c.status !== "available") {
+    $("context-line").textContent = "Historical context unavailable";
+    return;
+  }
+  const parts = [];
+  if (c.historical_cyclist_collisions != null) {
+    parts.push(`${c.historical_cyclist_collisions} cyclist-injury collisions within 250m (2021–2026)`);
+  }
+  if (c.facility_type) parts.push(c.facility_type);
+  if (c.on_truck_route) {
+    const n = (c.truck_route_streets || []).length;
+    parts.push(n ? `on ${n} designated truck routes` : "on a designated truck route");
+  }
+  if (c.source) parts.push(`source: ${c.source}`);
+  $("context-line").textContent = parts.join(" · ");
+}
+
 function renderEvents(events) {
   const ul = $("events");
   if (!events || !events.length) {
@@ -54,6 +74,8 @@ async function tick() {
 
     const { events } = await (await fetch("/api/events")).json();
     renderEvents(events);
+
+    renderContext(await (await fetch("/api/context")).json());
   } catch {
     // §21 failure philosophy: a dead enrichment call must never blank the screen.
     $("sys-cloudrun").textContent = "Cloud Run ⚠";

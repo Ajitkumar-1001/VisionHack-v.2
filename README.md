@@ -70,11 +70,15 @@ Those weights could not be justified honestly, so they do not exist.
 
 ## Measured frame rate and temporal mode
 
-> **Measured 2026-08-07 17:45 EDT — Variant B, `temporal_mode: "frames"`.**
-> Probe (`scripts/probe_cameras.py`, 6 cameras × 8 samples): best refresh
-> observed across NYCTMC was **0.629 fps**; the chosen camera measures
-> **0.489 fps** (one distinct frame every ~2.04 s). No sub-second ΔT is
-> claimable, so none is claimed. Chosen camera: **Central Park West @ 86 St**
+> **Measured 2026-08-07 — Variant B, `temporal_mode: "frames"`.**
+> The chosen camera publishes **0.500 fps — one distinct frame every 2.00 s**,
+> measured over 31 distinct frames in a 60-second poll at 17:45 EDT
+> (`scripts/probe_cameras.py`, which compares image hashes so it counts frames
+> NYC DOT actually published, not frames we requested). A screening pass across
+> 6 cameras first put the citywide ceiling at 0.629 fps — nowhere near the
+> ≥10 fps Variant A needs. No sub-second ΔT is claimable, so none is claimed.
+>
+> Chosen camera: **Central Park West @ 86 St**
 > (`8a6bc417-4877-4ebe-8052-88c1b261baf1`) — two crosswalks, the painted bike
 > lane, and turning traffic all in frame. Full probe table in
 > [`docs/DECISIONS.md`](docs/DECISIONS.md).
@@ -176,6 +180,7 @@ committed.**
 | `POST /api/agent/event` | Synthetic observation → decision |
 | `GET /api/context` | Intersection context |
 | `POST /api/camera/failover` | Force failover |
+| `POST /api/camera/reset` | Climb back to the primary camera (AC-14: the demo repeats) |
 
 `POST /api/agent/event` reproduces the decision logic without a camera. A sample
 event is committed at [`demo/sample-event.json`](demo/sample-event.json).

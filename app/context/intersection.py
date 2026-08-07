@@ -30,6 +30,10 @@ def get_intersection_context(camera: dict[str, Any] | None) -> Context:
             bike_infrastructure=raw.get("bike_infrastructure"),
             facility_type=raw.get("facility_type"),
             historical_cyclist_collisions=raw.get("historical_cyclist_collisions"),
+            on_truck_route=raw.get("on_truck_route"),
+            truck_route_streets=raw.get("truck_route_streets"),
+            source=raw.get("source"),
+            retrieved_at=raw.get("retrieved_at"),
         )
     except Exception:
         # Deliberately broad: an enrichment bug must not take down detection.

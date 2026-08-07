@@ -89,6 +89,13 @@ class Context(BaseModel):
     bike_infrastructure: bool | None = None
     facility_type: str | None = None
     historical_cyclist_collisions: int | None = None
+    # ADR-007: truck-route designation is invisible in the frame and modulates
+    # the truck/bus classes the detector already outputs.
+    on_truck_route: bool | None = None
+    truck_route_streets: list[str] | None = None
+    # Gate 6: provenance travels with the numbers, or they are just numbers.
+    source: str | None = None
+    retrieved_at: str | None = None
 
 
 class SafetyEvent(BaseModel):

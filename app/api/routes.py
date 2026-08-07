@@ -89,3 +89,16 @@ def context() -> dict[str, Any]:
 def camera_failover() -> dict[str, Any]:
     """Force failover. Drives §21 scenario 5. §14 switch_camera()."""
     return _engine.cameras.switch_camera()
+
+
+@router.post("/camera/reset")
+def camera_reset() -> dict[str, Any]:
+    """Climb back to the primary. AC-14: the demo must run repeatedly without
+    manual code changes, and failover is a one-way ladder — without this, a
+    single scenario-5 demo strands the process on a backup until redeploy."""
+    _engine.cameras.reset()
+    return {
+        "camera_id": _engine.cameras.current_id,
+        "mode": _engine.cameras.mode,
+        "status": _engine.cameras.status,
+    }

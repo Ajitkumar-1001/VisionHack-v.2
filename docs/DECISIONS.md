@@ -26,8 +26,11 @@ false precision claim, and it is exactly what a judge asks about.
 | Measurement | ΔT in seconds | ΔT in frames + fps | co-occupancy |
 | UI shows | `ΔT 0.72s` | `Δ 1 frame @ 0.5 fps (≈2.0s)` | `both in zone, same frame` |
 
-**Decision:** Variant B. Probe ran 17:45 EDT
-(`scripts/probe_cameras.py --cameras 6 --samples 8`, 964 cameras online):
+**Decision:** Variant B. Two-stage probe, 2026-08-07 (964 cameras online). The
+probe compares image hashes, so it counts frames NYC DOT actually *published*,
+not frames we requested.
+
+Stage 1 — screening, 6 cameras × 8 samples, to find the citywide ceiling:
 
 | fps | gap (s) | camera |
 |---|---|---|
@@ -37,8 +40,14 @@ false precision claim, and it is exactly what a judge asks about.
 | 0.489 | 2.04 | **Central Park West @ 86 St ← chosen** |
 | 0.322 | 3.10 | Amsterdam Ave @ 60 St |
 
-Best observed was 0.629 fps — nowhere near Variant A's ≥10 fps. Camera chosen
-on view geometry, verified by inspecting live frames: CPW @ 86 St
+Ceiling was 0.629 fps — nowhere near Variant A's ≥10 fps, so the fork was
+decided here. But those figures rest on 4–5 distinct frames each, which is too
+thin to print in a UI.
+
+Stage 2 — confirmation, 60 samples on the chosen camera: **0.500 fps, 2.00 s
+mean gap, 31 distinct frames.** That is the number the UI and README state.
+
+Camera chosen on view geometry, verified by inspecting live frames: CPW @ 86 St
 (`8a6bc417-4877-4ebe-8052-88c1b261baf1`) shows two zebra crosswalks, the painted
 bike lane, turning vehicles and pedestrians. The faster cameras lost on content
 — QBB @ Crescent is a bridge deck (no VRUs possible), Canal @ Chrystie faces an
