@@ -14,7 +14,7 @@
 
   <header class="bar">
     <div>
-      <h1>RIGHTHOOK NYC</h1>
+      <h1>RIGHTHOOK<span class="nyc">NYC</span></h1>
       <p class="sub">Proactive vehicle–VRU conflict detection · <span id="camera-name">—</span></p>
     </div>
     <div class="right">
@@ -44,10 +44,12 @@
 
     <div class="panel state">
       <h2>INTERSECTION STATE</h2>
-      <p class="severity" id="severity">NORMAL</p>
-      <p class="sub" id="agent-state">agent state: NORMAL</p>
-      <p class="delta" id="delta">—</p>
-      <p class="event-flag" id="event-flag"></p>
+      <div class="state-core" aria-live="polite">
+        <p class="severity" id="severity">NORMAL</p>
+        <p class="sub" id="agent-state">agent state: NORMAL</p>
+        <p class="delta" id="delta">—</p>
+        <p class="event-flag" id="event-flag"></p>
+      </div>
     </div>
   </section>
 
@@ -65,7 +67,7 @@
   <section class="panel strip system">
     <span id="sys-cloudrun">Cloud Run —</span>
     <span>Zones ✓ calibrated</span>
-    <span>Tests 53 passing</span>
+    <span>Tests 55 passing</span>
   </section>
 
   <!-- §12 + §24. Must appear in the UI and the README. -->

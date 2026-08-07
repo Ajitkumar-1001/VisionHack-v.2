@@ -1,105 +1,203 @@
-/* Professional civic-operations aesthetic (PRD §22): dark neutral, large camera
-   panel, strong typography, minimal cards, high-contrast warning state.
-   No animations, no 3D, no decorative particles. */
+/* Civic traffic-operations console (PRD §22): dark, layered, camera-first.
+   Motion is minimal and semantic — a breathing LIVE dot, a glow on CONFLICT —
+   and fully disabled under prefers-reduced-motion. No frameworks, no fonts
+   fetched over the network: judges' Wi-Fi never styles this page. */
 
 :root {
-  --bg: #0e1013;
-  --panel: #171a1f;
-  --line: #262b33;
-  --text: #e6e8eb;
-  --muted: #8b939e;
-  --live: #35d07f;
-  --replay: #f0a63a;
+  --bg: #07090d;
+  --bg-glow: #0d1220;
+  --panel: #12151c;
+  --panel-hi: #171b24;
+  --line: #232a36;
+  --line-hi: #33405a;
+  --text: #e8ebf0;
+  --muted: #8a94a3;
+  --faint: #5c6675;
+  --amber: #f5a623;          /* NYC DOT */
+  --live: #34d399;
+  --replay: #f5a623;
   --warning: #f0a63a;
-  --critical: #ef4444;
+  --critical: #f45b47;
+  --veh: #5b9bd5;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  background: var(--bg);
   color: var(--text);
-  font: 14px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
-  padding: 16px;
+  font: 14px/1.5 var(--mono);
+  padding: 20px 16px 12px;
+  min-height: 100vh;
+  background:
+    radial-gradient(1100px 500px at 50% -10%, var(--bg-glow), transparent 65%),
+    repeating-linear-gradient(0deg, transparent 0 39px, rgba(115, 140, 190, 0.045) 39px 40px),
+    repeating-linear-gradient(90deg, transparent 0 39px, rgba(115, 140, 190, 0.045) 39px 40px),
+    var(--bg);
 }
 
-.shell { display: flex; flex-direction: column; gap: 12px; max-width: 1400px; margin: 0 auto; }
+.shell { display: flex; flex-direction: column; gap: 14px; max-width: 1400px; margin: 0 auto; }
+
+/* ---------- header ---------- */
 
 .bar {
-  display: flex; justify-content: space-between; align-items: flex-start;
-  border-bottom: 1px solid var(--line); padding-bottom: 12px;
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;
+  border-bottom: 1px solid var(--line); padding-bottom: 14px;
 }
-h1 { font-size: 20px; letter-spacing: 0.08em; }
-h2 { font-size: 11px; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 8px; }
+h1 {
+  font-family: var(--sans);
+  font-size: 24px; font-weight: 750; letter-spacing: 0.14em;
+}
+h1 .nyc {
+  color: #0b0d10; background: var(--amber); border-radius: 4px;
+  padding: 1px 7px 2px; margin-left: 6px; letter-spacing: 0.1em;
+}
 .sub { color: var(--muted); font-size: 12px; }
-.right { text-align: right; }
+.bar .sub { margin-top: 5px; }
+.right { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 
-.badge { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; }
-.badge-live { color: var(--live); }
-.badge-replay { color: var(--replay); }
+/* Badge is a bordered pill; its ● glyph carries the state colour and, when
+   live, breathes. AC-13: this is the one label that must never lie. */
+.badge {
+  font-size: 12px; font-weight: 700; letter-spacing: 0.08em;
+  border: 1px solid; border-radius: 999px; padding: 4px 12px;
+}
+.badge-live   { color: var(--live);   border-color: rgba(52, 211, 153, 0.35); background: rgba(52, 211, 153, 0.07); animation: breathe 2.4s ease-in-out infinite; }
+.badge-replay { color: var(--replay); border-color: rgba(245, 166, 35, 0.4);  background: rgba(245, 166, 35, 0.08); }
+@keyframes breathe { 50% { box-shadow: 0 0 14px rgba(52, 211, 153, 0.25); } }
 
-.split { display: grid; grid-template-columns: 2.2fr 1fr; gap: 12px; }
+/* ---------- panels ---------- */
+
+.split { display: grid; grid-template-columns: 2.2fr 1fr; gap: 14px; }
 @media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
 
-.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 14px; }
-
-/* The CV is the hero — do not bury it behind charts. */
-.camera { min-height: 380px; display: grid; place-items: center; }
-.camera img { width: 100%; height: auto; display: block; border-radius: 4px; }
-.placeholder { color: var(--muted); font-size: 12px; letter-spacing: 0.08em; }
-
-.state { display: flex; flex-direction: column; }
-.severity { font-size: 34px; font-weight: 700; letter-spacing: 0.04em; margin: 12px 0 4px; }
-.severity.warning { color: var(--warning); }
-.severity.critical { color: var(--critical); }
-.severity.conflict { color: var(--critical); }
-.delta { color: var(--muted); font-size: 13px; }
-.event-flag { margin-top: 14px; font-size: 13px; font-weight: 700; color: var(--live); }
-
-.strip { display: block; }
-.events { list-style: none; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
-.muted { color: var(--muted); }
-
-.system { display: flex; gap: 24px; font-size: 12px; color: var(--muted); }
-
-.disclaimer {
-  color: var(--muted); font-size: 11px; text-align: center;
-  border-top: 1px solid var(--line); padding-top: 10px;
+.panel {
+  background: linear-gradient(180deg, var(--panel-hi), var(--panel) 55%);
+  border: 1px solid var(--line); border-radius: 10px; padding: 16px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 24px rgba(0, 0, 0, 0.35);
 }
+h2 {
+  font-family: var(--sans);
+  font-size: 11px; font-weight: 650; letter-spacing: 0.16em; color: var(--muted);
+  margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+}
+h2::before { content: ""; width: 3px; height: 11px; background: var(--amber); border-radius: 1px; }
 
-/* --- camera stage: overlay must scale with the image, so both live in a
-   position:relative box and the SVG stretches to match. --- */
-.stage { position: relative; width: 100%; background: #000; border-radius: 4px; overflow: hidden; }
-.stage img { width: 100%; display: block; image-rendering: auto; }
+/* ---------- camera stage: the hero ---------- */
+
+.camera { display: block; }
+.stage {
+  position: relative; width: 100%; background: #000;
+  border-radius: 6px; overflow: hidden;
+  border: 1px solid var(--line-hi);
+}
+.stage img { width: 100%; display: block; }
 #overlay { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* Surveillance corner brackets — pure CSS, one pseudo-element, 8 gradients. */
+.stage::after {
+  content: ""; position: absolute; inset: 6px; pointer-events: none;
+  --b: rgba(245, 166, 35, 0.75);
+  background:
+    linear-gradient(var(--b), var(--b)) 0 0 / 18px 2px,
+    linear-gradient(var(--b), var(--b)) 0 0 / 2px 18px,
+    linear-gradient(var(--b), var(--b)) 100% 0 / 18px 2px,
+    linear-gradient(var(--b), var(--b)) 100% 0 / 2px 18px,
+    linear-gradient(var(--b), var(--b)) 0 100% / 18px 2px,
+    linear-gradient(var(--b), var(--b)) 0 100% / 2px 18px,
+    linear-gradient(var(--b), var(--b)) 100% 100% / 18px 2px,
+    linear-gradient(var(--b), var(--b)) 100% 100% / 2px 18px;
+  background-repeat: no-repeat;
+}
 
 /* Zones: fill low enough to never hide the road. */
 #overlay polygon { fill-opacity: 0.13; stroke-width: 1.2; }
-.z-vru { fill: #35d07f; stroke: #35d07f; }
-.z-veh { fill: #5b9bd5; stroke: #5b9bd5; }
-.z-conflict { fill: #ef4444; stroke: #ef4444; stroke-width: 1.6; }
+.z-vru { fill: var(--live); stroke: var(--live); }
+.z-veh { fill: var(--veh); stroke: var(--veh); }
+.z-conflict { fill: var(--critical); stroke: var(--critical); stroke-width: 1.6; }
 
 #overlay rect { fill: none; stroke-width: 1.4; }
-.b-vru { stroke: #35d07f; }
-.b-veh { stroke: #5b9bd5; }
-.b-conflict { stroke: #ef4444; stroke-width: 2.2; }
-.b-label { fill: #fff; font: 7px ui-monospace, monospace; paint-order: stroke; stroke: #000; stroke-width: 2px; }
+.b-vru { stroke: var(--live); }
+.b-veh { stroke: var(--veh); }
+.b-conflict { stroke: var(--critical); stroke-width: 2.2; }
+.b-label { fill: #fff; font: 7px var(--mono); paint-order: stroke; stroke: #000; stroke-width: 2px; }
 
-.camera { min-height: 0; display: block; }
-.controls { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.controls { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .btn {
-  background: #1f242c; color: var(--text); border: 1px solid var(--line);
-  border-radius: 4px; padding: 7px 12px; font: inherit; font-size: 12px; cursor: pointer;
+  background: #1b2029; color: var(--text); border: 1px solid var(--line);
+  border-radius: 6px; padding: 8px 14px; font: inherit; font-size: 12px; cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
 }
-.btn:hover { border-color: #3a424e; }
-.btn.primary { background: #1d3b2a; border-color: #2c6b48; color: #7ee2ac; }
+.btn:hover { border-color: var(--line-hi); transform: translateY(-1px); }
+.btn:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.btn.primary {
+  background: linear-gradient(180deg, #1e4630, #17382a); border-color: #2c6b48; color: #7ee2ac;
+}
+.btn.primary:hover { box-shadow: 0 0 16px rgba(52, 211, 153, 0.18); }
 
-.legend { margin-top: 8px; font-size: 11px; color: var(--muted); display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.legend { margin-top: 10px; font-size: 11px; color: var(--muted); display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
 .key { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
-.k-vru { background: #35d07f; } .k-veh { background: #5b9bd5; } .k-conflict { background: #ef4444; }
+.k-vru { background: var(--live); } .k-veh { background: var(--veh); } .k-conflict { background: var(--critical); }
 
-.src { font-size: 10px; margin-top: 6px; }
-.sev-critical { color: var(--critical); font-weight: 700; }
-.sev-warning { color: var(--warning); font-weight: 700; }
-.sev-conflict { color: var(--critical); font-weight: 700; }
-.disclaimer strong { color: #c9ced6; }
+/* ---------- intersection state ---------- */
+
+.state { display: flex; flex-direction: column; }
+.state-core { flex: 1; display: flex; flex-direction: column; justify-content: center; text-align: center; padding: 10px 0 14px; }
+.severity {
+  font-family: var(--sans);
+  font-size: clamp(34px, 4vw, 46px); font-weight: 800; letter-spacing: 0.05em;
+  margin: 8px 0 6px;
+}
+.severity.warning  { color: var(--warning);  text-shadow: 0 0 22px rgba(240, 166, 58, 0.35); }
+.severity.critical { color: var(--critical); text-shadow: 0 0 22px rgba(244, 91, 71, 0.4); }
+.severity.conflict { color: var(--critical); text-shadow: 0 0 22px rgba(244, 91, 71, 0.4); }
+/* The whole panel answers the state: hairline turns red while in conflict. */
+.state:has(.severity.conflict), .state:has(.severity.critical) {
+  border-color: rgba(244, 91, 71, 0.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 0 28px rgba(244, 91, 71, 0.12);
+}
+.delta { color: var(--muted); font-size: 13px; }
+.event-flag:not(:empty) {
+  margin: 14px auto 0; width: fit-content;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: var(--live);
+  border: 1px solid rgba(52, 211, 153, 0.4); border-radius: 999px; padding: 5px 14px;
+  background: rgba(52, 211, 153, 0.07);
+}
+
+/* ---------- strips ---------- */
+
+.strip { display: block; }
+#context-line { font-size: 13px; }
+.src { font-size: 10px; margin-top: 6px; color: var(--faint); }
+
+.events { list-style: none; display: flex; flex-direction: column; font-size: 13px; max-height: 180px; overflow-y: auto; }
+.events li { padding: 6px 2px; border-bottom: 1px solid rgba(35, 42, 54, 0.6); }
+.events li:last-child { border-bottom: none; }
+.muted { color: var(--muted); }
+
+.sev-critical, .sev-conflict {
+  color: var(--critical); font-weight: 700; font-size: 11px; letter-spacing: 0.06em;
+  border: 1px solid rgba(244, 91, 71, 0.4); border-radius: 4px; padding: 1px 6px; margin-right: 4px;
+}
+.sev-warning {
+  color: var(--warning); font-weight: 700; font-size: 11px; letter-spacing: 0.06em;
+  border: 1px solid rgba(240, 166, 58, 0.4); border-radius: 4px; padding: 1px 6px; margin-right: 4px;
+}
+
+.system { display: flex; gap: 26px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+.system span::before {
+  content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--live); margin-right: 7px; vertical-align: 1px;
+}
+
+.disclaimer {
+  color: var(--faint); font-size: 11px; text-align: center; line-height: 1.6;
+  border-top: 1px solid var(--line); padding-top: 12px;
+}
+.disclaimer strong { color: var(--muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  .badge-live { animation: none; }
+  .btn, .btn:hover { transition: none; transform: none; }
+}

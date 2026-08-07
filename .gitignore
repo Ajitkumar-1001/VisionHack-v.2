@@ -18,3 +18,7 @@ demo/recordings/
 *.mov
 demo/frames/
 .gstack/
+
+.agents/
+.claude/
+**.md
