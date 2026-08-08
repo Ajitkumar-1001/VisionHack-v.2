@@ -1,0 +1,50 @@
+# Local equivalent of the Cloud Run deployment. PRD §19: ONE service.
+#
+#   docker compose up --build          run the app (serves API + UI on :8080)
+#   docker compose --profile build-ui up frontend-build
+#                                      recompile the Astro console first
+#
+# `frontend-build` is a one-shot compiler, not a server. It writes into
+# ./app/static/next on the host so the `app` image picks it up on its next
+# build — the same path Cloud Run gets. There is deliberately no second
+# long-running web container: §30 bans a separate frontend deployment, and
+# running one locally would mean the demo you rehearse is not the demo you ship.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: righthook-nyc:local
+    ports:
+      - "8080:8080"
+    environment:
+      # Cloud Run injects PORT; mirrored here so the container contract matches.
+      PORT: 8080
+      # Optional. Absent is fine: perception degrades, the replay still runs.
+      ROBOFLOW_API_KEY: ${ROBOFLOW_API_KEY:-}
+      ROBOFLOW_WORKSPACE: ${ROBOFLOW_WORKSPACE:-}
+      ROBOFLOW_WORKFLOW_ID: ${ROBOFLOW_WORKFLOW_ID:-}
+    healthcheck:
+      # The §19 eligibility gate, checked locally too.
+      test: ["CMD", "python", "-c",
+             "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/health').status==200 else 1)"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  frontend-build:
+    profiles: ["build-ui"]
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    volumes:
+      # astro.config.mjs writes to ../app/static/next, which is outside the
+      # frontend build context — so the repo is mounted and the compiled
+      # output lands on the host.
+      - ./frontend:/build
+      - ./app/static/next:/app/static/next
+      # Keep the image's node_modules; the host copy may be a different arch.
+      - /build/node_modules
