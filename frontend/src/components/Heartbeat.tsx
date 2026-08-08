@@ -36,7 +36,7 @@ export default function Heartbeat() {
   return (
     <div className="flex items-center gap-2 text-[11px] tracking-widest font-bold">
       <motion.span
-        className={`inline-block h-[7px] w-[7px] rounded-full ${alerting ? "bg-[#f45b47]" : "bg-[#34d399]"}`}
+        className={`inline-block h-[7px] w-[7px] rounded-full ${alerting ? "bg-critical" : "bg-live"}`}
         animate={{ scale: [1, 1.5, 1], opacity: [1, 0.6, 1] }}
         transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
       />
@@ -47,7 +47,7 @@ export default function Heartbeat() {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: -8, opacity: 0 }}
           transition={spring}
-          className={alerting ? "text-[#f45b47]" : "text-[#8a94a3]"}
+          className={alerting ? "text-critical" : "text-muted"}
         >
           {state}
         </motion.span>
@@ -56,7 +56,7 @@ export default function Heartbeat() {
         <motion.span
           layout
           transition={spring}
-          className="rounded-full border border-[#f5a623]/40 px-2 py-[1px] text-[#f5a623]"
+          className="rounded-full border border-amber/40 px-2 py-[1px] text-amber"
         >
           {status.event_count}
         </motion.span>

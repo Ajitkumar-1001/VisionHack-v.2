@@ -1,27 +1,10 @@
 /* Civic traffic-operations console (PRD §22): dark, layered, camera-first.
    Motion is minimal and semantic — a breathing LIVE dot, a glow on CONFLICT —
    and fully disabled under prefers-reduced-motion. No frameworks, no fonts
-   fetched over the network: judges' Wi-Fi never styles this page. */
+   fetched over the network: judges' Wi-Fi never styles this page.
+   Palette lives in tokens.css (Signal Cabinet). */
 
-:root {
-  --bg: #07090d;
-  --bg-glow: #0d1220;
-  --panel: #12151c;
-  --panel-hi: #171b24;
-  --line: #232a36;
-  --line-hi: #33405a;
-  --text: #e8ebf0;
-  --muted: #8a94a3;
-  --faint: #5c6675;
-  --amber: #f5a623;          /* NYC DOT */
-  --live: #34d399;
-  --replay: #f5a623;
-  --warning: #f0a63a;
-  --critical: #f45b47;
-  --veh: #5b9bd5;
-  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
-}
+@import "./tokens.css";
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -67,7 +50,7 @@ body::before {
 }
 h1 {
   font-family: var(--sans);
-  font-size: 24px; font-weight: 750; letter-spacing: 0.14em;
+  font-size: 26px; font-weight: 800; letter-spacing: 0.16em;
 }
 h1 .nyc {
   color: #0b0d10; background: var(--amber); border-radius: 4px;
@@ -75,6 +58,12 @@ h1 .nyc {
 }
 .sub { color: var(--muted); font-size: 12px; }
 .bar .sub { margin-top: 5px; }
+/* Measurement honesty (fps · temporal mode) — instrument weight, not caption. */
+#fps-line {
+  color: var(--text);
+  font-size: 12px; font-weight: 650; letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+}
 .right { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 
 /* Badge is a bordered pill; its ● glyph carries the state colour and, when
@@ -178,23 +167,37 @@ h2::before { content: ""; width: 3px; height: 11px; background: var(--amber); bo
 .state-core { flex: 1; display: flex; flex-direction: column; justify-content: center; text-align: center; padding: 10px 0 14px; }
 .severity {
   font-family: var(--sans);
-  font-size: clamp(34px, 4vw, 46px); font-weight: 800; letter-spacing: 0.05em;
-  margin: 8px 0 6px;
+  font-size: clamp(34px, 4vw, 46px); font-weight: 800; letter-spacing: 0.06em;
+  margin: 8px 0 4px;
 }
 .severity.warning  { color: var(--warning);  text-shadow: 0 0 22px rgba(240, 166, 58, 0.35); }
 .severity.critical { color: var(--critical); text-shadow: 0 0 22px rgba(244, 91, 71, 0.4); }
 .severity.conflict { color: var(--critical); text-shadow: 0 0 22px rgba(244, 91, 71, 0.4); }
-/* The whole panel answers the state: hairline turns red and the glow breathes
-   while in conflict — an alarm you can see across the room. */
-.state:has(.severity.conflict), .state:has(.severity.critical) {
+/* Conflict couples camera stage + state panel — shared amber/critical edge,
+   not state alone. Ambient grid/scanline stay frozen as shipped. */
+.split:has(.severity.conflict) .camera,
+.split:has(.severity.critical) .camera,
+.split:has(.severity.conflict) .state,
+.split:has(.severity.critical) .state {
   border-color: rgba(244, 91, 71, 0.45);
   animation: alarm 2.2s ease-in-out infinite;
+}
+.split:has(.severity.conflict) .stage,
+.split:has(.severity.critical) .stage {
+  border-color: rgba(244, 91, 71, 0.55);
+  box-shadow: 0 0 28px rgba(244, 91, 71, 0.14);
 }
 @keyframes alarm {
   0%, 100% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 0 22px rgba(244, 91, 71, 0.1); }
   50% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 0 42px rgba(244, 91, 71, 0.22); }
 }
-.delta { color: var(--muted); font-size: 13px; }
+/* Δ / temporal readout — co-equal with severity, same instrument line. */
+.delta {
+  color: var(--text);
+  font-size: 15px; font-weight: 650; letter-spacing: 0.05em;
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
 .event-flag:not(:empty) {
   margin: 14px auto 0; width: fit-content;
   font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: var(--live);
@@ -244,6 +247,9 @@ h2::before { content: ""; width: 3px; height: 11px; background: var(--amber); bo
 @media (prefers-reduced-motion: reduce) {
   .badge-live, body::before, .stage::before,
   .bar, .panel, .disclaimer,
-  .state:has(.severity.conflict), .state:has(.severity.critical) { animation: none; }
+  .split:has(.severity.conflict) .camera,
+  .split:has(.severity.critical) .camera,
+  .split:has(.severity.conflict) .state,
+  .split:has(.severity.critical) .state { animation: none; }
   .btn, .btn:hover { transition: none; transform: none; }
 }

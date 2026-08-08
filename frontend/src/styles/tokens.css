@@ -1,0 +1,43 @@
+/* Signal Cabinet palette — single source for console.css + Tailwind islands.
+   Tailwind v4 @theme exposes --color-* utilities; :root keeps the short
+   --bg/--amber names the console sheet already uses. */
+
+@theme {
+  --color-bg: #07090d;
+  --color-bg-glow: #0d1220;
+  --color-panel: #12151c;
+  --color-panel-hi: #171b24;
+  --color-line: #232a36;
+  --color-line-hi: #33405a;
+  --color-text: #e8ebf0;
+  --color-muted: #8a94a3;
+  --color-faint: #5c6675;
+  --color-amber: #f5a623; /* NYC DOT */
+  --color-live: #34d399;
+  --color-replay: #f5a623;
+  --color-warning: #f0a63a;
+  --color-critical: #f45b47;
+  --color-veh: #5b9bd5;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+}
+
+:root {
+  --bg: var(--color-bg);
+  --bg-glow: var(--color-bg-glow);
+  --panel: var(--color-panel);
+  --panel-hi: var(--color-panel-hi);
+  --line: var(--color-line);
+  --line-hi: var(--color-line-hi);
+  --text: var(--color-text);
+  --muted: var(--color-muted);
+  --faint: var(--color-faint);
+  --amber: var(--color-amber);
+  --live: var(--color-live);
+  --replay: var(--color-replay);
+  --warning: var(--color-warning);
+  --critical: var(--color-critical);
+  --veh: var(--color-veh);
+  --mono: var(--font-mono);
+  --sans: var(--font-sans);
+}

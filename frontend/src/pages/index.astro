@@ -2,6 +2,12 @@
 // One screen. No navigation, no landing page, no settings, no auth. PRD §22.
 // Server-rendered at build time; the only client JS is /static/app.js (the
 // console driver, unchanged) and the Heartbeat island.
+//
+// ID contract — owned by app/static/app.js. Do not rename without syncing app.js:
+//   camera-name, mode-badge, fps-line, camera-img, overlay,
+//   replay-btn, failover-btn, reset-btn, replay-note,
+//   severity, agent-state, delta, event-flag,
+//   events, context-line, context-source, sys-cloudrun
 import "../styles/global.css";
 import "../styles/console.css";
 import Heartbeat from "../components/Heartbeat";

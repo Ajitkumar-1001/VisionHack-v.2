@@ -13,5 +13,15 @@ export default defineConfig({
   base: "/static/next",
   outDir: "../app/static/next",
   integrations: [react()],
-  vite: { plugins: [tailwindcss()] },
+  vite: {
+    plugins: [tailwindcss()],
+    // Aesthetic iteration against a running FastAPI without rebuilding into
+    // app/static/next/ on every paint. Production still serves the built outDir.
+    server: {
+      proxy: {
+        "/api": "http://localhost:8000",
+        "/static": "http://localhost:8000",
+      },
+    },
+  },
 });
