@@ -10,6 +10,25 @@ const $ = (id) => document.getElementById(id);
 
 let replayTimer = null;
 
+// Built in JS rather than in markup: two HTML entry points are served (the
+// Astro build at /static/next/ and the original index.html), and this keeps
+// the fallback working in both without editing generated output.
+function noFeed() {
+  let el = $("no-feed");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "no-feed";
+    el.hidden = true;
+    el.textContent = "● DEMO REPLAY — no live feed on this rung";
+    el.style.cssText =
+      "position:absolute;inset:0;display:flex;align-items:center;" +
+      "justify-content:center;font-size:12px;letter-spacing:.08em;" +
+      "color:#f5a623;background:#000;text-align:center;padding:16px;";
+    document.querySelector(".stage")?.appendChild(el);
+  }
+  return el;
+}
+
 // AC-15 / §7 rule 7. Every number on screen carries its measurement basis.
 function renderFps(s) {
   const fps = s.measured_fps == null ? "—" : `${s.measured_fps} fps`;
@@ -119,11 +138,21 @@ async function tick() {
     renderFps(s);
     renderState(s);
     $("sys-cloudrun").textContent = "Cloud Run ✓";
-    $("camera-name").textContent = s.camera?.name || "—";
+    $("camera-name").textContent = s.camera?.name || "replay clip — no live feed";
 
-    // Cache-bust: the feed serves a new still roughly every 2 s.
-    if (s.camera?.image_url && !replayTimer) {
-      $("camera-img").src = `${s.camera.image_url}?t=${Date.now()}`;
+    // The replay rung has no image_url (§18). Leaving the <img> pointed at
+    // nothing renders a broken-image glyph and alt text, which reads as a
+    // crash rather than as the labelled fallback it actually is.
+    const img = $("camera-img");
+    if (s.camera?.image_url) {
+      // Cache-bust: the feed serves a new still roughly every 2 s.
+      if (!replayTimer) img.src = `${s.camera.image_url}?t=${Date.now()}`;
+      img.hidden = false;
+      noFeed().hidden = true;
+    } else {
+      img.removeAttribute("src");
+      img.hidden = true;
+      noFeed().hidden = false;
     }
 
     renderEvents((await (await fetch("/api/events")).json()).events);
@@ -164,8 +193,16 @@ $("failover-btn").addEventListener("click", async () => {
   await fetch("/api/camera/failover", { method: "POST" });
   tick();
 });
+// Reset must climb the camera ladder back too, not just clear the engine.
+// Failover is one-way (§18), so without this a single "Force camera failure"
+// strands the UI on the replay rung — image_url goes null, the camera panel
+// shows a broken image and the context block empties — with no way back from
+// the UI. AC-14 requires the demo to repeat without manual intervention.
 $("reset-btn").addEventListener("click", async () => {
-  await fetch("/api/run/reset", { method: "POST" });
+  await Promise.all([
+    fetch("/api/run/reset", { method: "POST" }),
+    fetch("/api/camera/reset", { method: "POST" }),
+  ]);
   $("replay-note").textContent = "";
   tick();
 });
