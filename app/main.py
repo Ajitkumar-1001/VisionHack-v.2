@@ -39,7 +39,10 @@ def health() -> dict[str, str]:
 
 @app.get("/", include_in_schema=False)
 def index() -> FileResponse:
-    return FileResponse(STATIC_DIR / "index.html")
+    # The Astro build (frontend/ -> app/static/next/). Asset URLs inside it are
+    # absolute (/static/next/_astro/...), so serving it at / just works. The
+    # vanilla console remains at /static/index.html — rollback is this one line.
+    return FileResponse(STATIC_DIR / "next" / "index.html")
 
 
 app.include_router(router, prefix="/api")
