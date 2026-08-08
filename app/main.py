@@ -44,5 +44,6 @@ def index() -> FileResponse:
 
 app.include_router(router, prefix="/api")
 
-# Mounted last so it cannot shadow /health or the API router.
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+# Mounted last so it cannot shadow /health or the API router. html=True serves
+# directory indexes, which is how the Astro build at /static/next/ resolves.
+app.mount("/static", StaticFiles(directory=STATIC_DIR, html=True), name="static")
